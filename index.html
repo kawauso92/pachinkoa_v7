@@ -1136,11 +1136,13 @@ function recalc() {
   const border = k.hatsua / (heikin * k.heiren / 250);
 
   // 期待時給（試しうちはスキップ）
+  // 二重課税防止：持ち玉比率は控除（37%）のみで反映するため、
+  // 期待時給の計算・判定は常に持ち玉100%ベース（tama=kankin固定）で行う
   let kitaiJikyu = null;
   if (!isTrial && kaitenRitsu) {
     const kankin = 100 / kokan;
     const zenki  = heikin * k.jikan / k.total * kankin;
-    const koki   = 250 * k.jikan / kaitenRitsu * (4*(1-ratio) + ratio*kankin);
+    const koki   = 250 * k.jikan / kaitenRitsu * kankin;  // 持ち玉100%固定（ratio=1 → tama=kankin）
     kitaiJikyu = zenki - koki;
   }
 
@@ -1182,6 +1184,19 @@ function recalc() {
   }
   el('kpi-kado', '稼働 '+(kadoH ? kadoH.toFixed(1)+'h' : '—'));
 
+  // 当日累計の持ち玉比率を事前計算（期待時給の近くに表示するため）
+  const uchiElMochi = document.querySelector('#uchi-chips .chip.selected');
+  const uchiMochi   = uchiElMochi ? uchiElMochi.textContent : '自分';
+  const dateMochi   = document.getElementById('in-date').value;
+  let dispMochiPct  = null; // 表示用持ち玉比率（%、代打ち時のみ）
+  if (uchiMochi !== '自分') {
+    const prevMochi  = getRuikeiData(uchiMochi, dateMochi);
+    const tcTama     = prevMochi.choTama + investBall;   // 累計貯玉投資(発)
+    const tgBalls    = prevMochi.genkinBalls + invest / 4; // 累計現金投資(発)
+    const tbAll      = tcTama + tgBalls;
+    dispMochiPct = tbAll > 0 ? Math.round(tcTama / tbAll * 100) : 100;
+  }
+
   // 期待時給
   if (kitaiJikyu !== null) {
     const kc = kitaiColor(kitaiJikyu);
@@ -1189,7 +1204,9 @@ function recalc() {
     kitaiEl.textContent = fmt(kitaiJikyu);
     kitaiEl.className = 'kpi-value';
     kitaiEl.style.color = kc.color;
-    document.getElementById('kpi-kitai-sub').textContent = kc.label;
+    // 期待時給ラベルの隣に持ち玉比率を表示（代打ちのみ）
+    const mochiLabel = dispMochiPct !== null ? ' | 持玉'+dispMochiPct+'%' : '';
+    document.getElementById('kpi-kitai-sub').textContent = kc.label + mochiLabel;
     document.getElementById('border-kitai-val').textContent = fmt(kitaiJikyu);
     document.getElementById('border-kitai-val').style.color = kc.color;
   } else {
@@ -1365,7 +1382,7 @@ async function doSend() {
   if (!isTrial && kaitenRitsu) {
     const kankin = 100 / kokan;
     const zenki  = heikin * k.jikan / k.total * kankin;
-    const koki   = 250 * k.jikan / kaitenRitsu * (4*(1-ratio) + ratio*kankin);
+    const koki   = 250 * k.jikan / kaitenRitsu * kankin;  // 持ち玉100%固定（二重課税防止）
     kitaiJikyu   = zenki - koki;
   }
 
@@ -1395,6 +1412,11 @@ async function doSend() {
   const avgKitai2   = totalKadoH2 > 0 ? (prev.kitaiWeight + curKitaiW2) / totalKadoH2 : (kitaiJikyu || 0);
   const hoshu      = uchi !== '自分' ? calcHoshuLocal(ruikeiSagi, avgKitai2, ruikeiGenkin, uchi) : 0;
   const koujoAmt   = Math.round(invest * 0.107 * 3.5);
+  // 持ち玉比率（V列記録用）：当日累計の貯玉投資÷総投資
+  const sendChoTama  = prev.choTama + investBall;
+  const sendGenBalls = prev.genkinBalls + invest / 4;
+  const sendTotal    = sendChoTama + sendGenBalls;
+  const mochiRatioSend = sendTotal > 0 ? parseFloat((sendChoTama / sendTotal).toFixed(4)) : 1;
 
   // 送信確認
   const confirmMsg = isTrial
@@ -1428,9 +1450,10 @@ async function doSend() {
           todayHits:   todayHits || 0,
           hitBalls:    Math.round(hitBalls || 0),
           jitsu1R:     soRounds > 0 ? parseFloat((hitBalls / soRounds).toFixed(1)) : '',
-          genkinInvest:    Math.round(invest),       // W列：現金投資額(円)
-          choTamaInvest:   Math.round(investBall),   // V列計算用：貯玉投資(発)
-          genkinInvestBalls: Math.round(invest / 4),  // 現金投資(発)
+          genkinInvest:    Math.round(invest),         // W列：現金投資額(円)
+          mochiRatio:      mochiRatioSend,            // V列：持ち玉比率（0〜1の小数）
+          choTamaInvest:   Math.round(investBall),    // 参考：貯玉投資(発)
+          genkinInvestBalls: Math.round(invest / 4),  // 参考：現金投資(発)
         };
 
         const res = await fetch(GAS_URL, {
