@@ -228,9 +228,25 @@ select.input-field{cursor:pointer;appearance:none;background-image:url("data:ima
       </div>
       <!-- 期待時給 big -->
       <div class="kpi-card info" style="grid-column:1/-1;padding:12px 14px;">
-        <div class="kpi-label">期待時給（持玉比率反映）</div>
-        <div class="kpi-value info" id="kpi-kitai" style="font-size:26px;margin-top:4px;">—</div>
-        <div class="kpi-sub" id="kpi-kitai-sub">持玉比率 —% 時</div>
+        <div class="kpi-label">期待時給</div>
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-top:4px;">
+          <div>
+            <div class="kpi-value info" id="kpi-kitai" style="font-size:26px;">—</div>
+            <div class="kpi-sub" id="kpi-kitai-sub">—</div>
+          </div>
+          <!-- 持玉比率（代打ち時のみ表示） -->
+          <div id="kpi-mochi-block" style="display:none;text-align:right;">
+            <div class="kpi-label" style="text-align:right;">持玉比率</div>
+            <div class="kpi-value" id="kpi-mochi-val" style="font-size:22px;margin-top:2px;">—%</div>
+            <div class="kpi-sub" id="kpi-mochi-ruikei" style="text-align:right;">累計: —%</div>
+          </div>
+        </div>
+        <!-- 累計平均期待時給（代打ち時のみ表示） -->
+        <div id="kpi-kitai-avg-block" style="display:none;margin-top:8px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.06);">
+          <span style="font-size:9px;color:var(--text2);font-family:'JetBrains Mono',monospace;letter-spacing:1px;">累計平均期待時給</span>
+          <span id="kpi-kitai-avg-val" style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;margin-left:8px;">—</span>
+          <span id="kpi-kitai-avg-label" style="font-size:11px;margin-left:4px;">—</span>
+        </div>
       </div>
       <!-- 仕事量 -->
       <div class="kpi-card" id="card-shigoto">
@@ -482,15 +498,15 @@ select.input-field{cursor:pointer;appearance:none;background-image:url("data:ima
       </div>
       <div>
         <div class="input-label" style="display:block;margin-bottom:4px;color:#39ff6e;">🟢 合格（円以上）</div>
-        <input class="input-field" type="number" inputmode="numeric" id="th-ok" value="2000" oninput="saveThresholds()">
+        <input class="input-field" type="number" inputmode="numeric" id="th-ok" value="1800" oninput="saveThresholds()">
       </div>
       <div>
         <div class="input-label" style="display:block;margin-bottom:4px;color:#00d4ff;">🔵 良台（円以上）</div>
-        <input class="input-field" type="number" inputmode="numeric" id="th-good" value="2500" oninput="saveThresholds()">
+        <input class="input-field" type="number" inputmode="numeric" id="th-good" value="2300" oninput="saveThresholds()">
       </div>
       <div>
         <div class="input-label" style="display:block;margin-bottom:4px;color:#ff6bff;">🏆 感動（円以上）</div>
-        <input class="input-field" type="number" inputmode="numeric" id="th-great" value="3000" oninput="saveThresholds()">
+        <input class="input-field" type="number" inputmode="numeric" id="th-great" value="2800" oninput="saveThresholds()">
       </div>
     </div>
   </div>
@@ -1037,7 +1053,6 @@ function setRatioVal(val) {
   S.ratio = parseFloat(val);
   document.getElementById('ratio-display').textContent = val+'%';
   document.getElementById('border-kitai-sub').textContent = '持玉比率 '+val+'% 時';
-  document.getElementById('kpi-kitai-sub').textContent = '持玉比率 '+val+'% 時';
   ['100','75','50','25','0'].forEach(v => {
     document.getElementById('rp-'+v).classList.toggle('active', String(S.ratio)===v);
   });
@@ -1184,19 +1199,6 @@ function recalc() {
   }
   el('kpi-kado', '稼働 '+(kadoH ? kadoH.toFixed(1)+'h' : '—'));
 
-  // 当日累計の持ち玉比率を事前計算（期待時給の近くに表示するため）
-  const uchiElMochi = document.querySelector('#uchi-chips .chip.selected');
-  const uchiMochi   = uchiElMochi ? uchiElMochi.textContent : '自分';
-  const dateMochi   = document.getElementById('in-date').value;
-  let dispMochiPct  = null; // 表示用持ち玉比率（%、代打ち時のみ）
-  if (uchiMochi !== '自分') {
-    const prevMochi  = getRuikeiData(uchiMochi, dateMochi);
-    const tcTama     = prevMochi.choTama + investBall;   // 累計貯玉投資(発)
-    const tgBalls    = prevMochi.genkinBalls + invest / 4; // 累計現金投資(発)
-    const tbAll      = tcTama + tgBalls;
-    dispMochiPct = tbAll > 0 ? Math.round(tcTama / tbAll * 100) : 100;
-  }
-
   // 期待時給
   if (kitaiJikyu !== null) {
     const kc = kitaiColor(kitaiJikyu);
@@ -1204,9 +1206,8 @@ function recalc() {
     kitaiEl.textContent = fmt(kitaiJikyu);
     kitaiEl.className = 'kpi-value';
     kitaiEl.style.color = kc.color;
-    // 期待時給ラベルの隣に持ち玉比率を表示（代打ちのみ）
-    const mochiLabel = dispMochiPct !== null ? ' | 持玉'+dispMochiPct+'%' : '';
-    document.getElementById('kpi-kitai-sub').textContent = kc.label + mochiLabel;
+    // 台評価ラベルのみ表示（持玉%小表示は削除→新設の右パネルに移動）
+    document.getElementById('kpi-kitai-sub').textContent = kc.label;
     document.getElementById('border-kitai-val').textContent = fmt(kitaiJikyu);
     document.getElementById('border-kitai-val').style.color = kc.color;
   } else {
@@ -1214,7 +1215,7 @@ function recalc() {
     kitaiEl.textContent = '—';
     kitaiEl.className = 'kpi-value info';
     kitaiEl.style.color = '';
-    document.getElementById('kpi-kitai-sub').textContent = '持玉比率 '+Math.round(S.ratio)+'% 時';
+    document.getElementById('kpi-kitai-sub').textContent = '—';
     el('border-kitai-val', '—');
   }
 
@@ -1261,44 +1262,70 @@ function recalc() {
     const el2 = document.getElementById('disp-border-diff');
     el2.textContent = '—'; el2.className = 'badge neu';
   }
-  // 累積差玉・報酬（代打ちのみ）
+  // 累積差玉・報酬・持玉比率・累計平均期待時給（代打ちのみ）
   const uchiEl  = document.querySelector('#uchi-chips .chip.selected');
   const uchi    = uchiEl ? uchiEl.textContent : '自分';
   const date    = document.getElementById('in-date').value;
   const ruikeiCard = document.getElementById('card-ruikei');
   if (uchi !== '自分') {
     ruikeiCard.style.display = '';
-    const prev        = getRuikeiData(uchi, date);
-    const curInvest   = parseFloat(document.getElementById('in-invest').value) || 0;
-    const curInvBall  = parseFloat(document.getElementById('in-invest-ball').value) || 0;
-    const ruikeiSagi  = prev.sagitama + Math.round(sagitama);
-    const ruikeiGenkin= prev.genkinInvest + curInvest;
-    // 加重平均期待時給
+    const prev = getRuikeiData(uchi, date);
+
+    // ① 累計平均期待時給（稼働時間加重平均）
     const curKadoH    = kadoH || 0;
     const curKitaiW   = (kitaiJikyu !== null && curKadoH > 0) ? kitaiJikyu * curKadoH : 0;
     const totalKadoH  = prev.kadoTotal + curKadoH;
     const totalKitaiW = prev.kitaiWeight + curKitaiW;
     const avgKitai    = totalKadoH > 0 ? totalKitaiW / totalKadoH : (kitaiJikyu || 0);
-    // 持ち玉比率
-    const totalChoTama  = prev.choTama + curInvBall;
-    const totalGenBalls = prev.genkinBalls + curInvest / 4;
-    const totalBalls    = totalChoTama + totalGenBalls;
-    const mochiRatio    = totalBalls > 0 ? totalChoTama / totalBalls : 1;
-    // 報酬計算
-    const hoshu       = calcHoshuLocal(ruikeiSagi, avgKitai, ruikeiGenkin, uchi);
-    const startLine   = (avgKitai >= 1800) ? 5000 : 10000;
-    const koujo       = Math.round(ruikeiGenkin * 0.107 * 3.5);
-    const sagiClass   = ruikeiSagi >= 0 ? 'pos' : 'neg';
+    const avgKc       = kitaiColor(avgKitai);
+
+    // ② 持玉比率（現在台：当セッションのみ、investBallはmoratta込み）
+    const curTotalBalls = investBall + invest / 4;
+    const curMochiPct   = curTotalBalls > 0 ? Math.round(investBall / curTotalBalls * 100) : null;
+
+    // ③ 持玉比率（累計：当日全台の自然加重平均）
+    const cumChoTama  = prev.choTama + investBall;
+    const cumGenBalls = prev.genkinBalls + invest / 4;
+    const cumTotal    = cumChoTama + cumGenBalls;
+    const cumMochiPct = cumTotal > 0 ? Math.round(cumChoTama / cumTotal * 100) : null;
+
+    // ④ 持玉比率ブロック表示（代打ち時のみ）
+    const mochiBlock = document.getElementById('kpi-mochi-block');
+    mochiBlock.style.display = '';
+    const kc2        = kitaiJikyu !== null ? kitaiColor(kitaiJikyu) : {color:'var(--text2)', label:''};
+    const mochiValEl = document.getElementById('kpi-mochi-val');
+    mochiValEl.textContent = curMochiPct !== null ? curMochiPct + '%' : '—%';
+    mochiValEl.style.color  = kc2.color;
+    document.getElementById('kpi-mochi-ruikei').textContent =
+      cumMochiPct !== null ? '累計: ' + cumMochiPct + '%' : '累計: —%';
+
+    // ⑤ 累計平均期待時給ブロック表示（代打ち時のみ）
+    const avgBlock = document.getElementById('kpi-kitai-avg-block');
+    avgBlock.style.display = '';
+    const avgValEl = document.getElementById('kpi-kitai-avg-val');
+    avgValEl.textContent = Math.round(avgKitai).toLocaleString('ja-JP') + '円';
+    avgValEl.style.color  = avgKc.color;
+    document.getElementById('kpi-kitai-avg-label').textContent = avgKc.label.split(' ')[0]; // 絵文字のみ
+
+    // ⑥ 累積差玉・報酬
+    const ruikeiSagi   = prev.sagitama + Math.round(sagitama);
+    const ruikeiGenkin = prev.genkinInvest + invest;
+    const hoshu        = calcHoshuLocal(ruikeiSagi, avgKitai, ruikeiGenkin, uchi);
+    const startLine    = (avgKitai >= 1800) ? 5000 : 10000;
+    const koujo        = Math.round(ruikeiGenkin * 0.107 * 3.5);
+    const sagiClass    = ruikeiSagi >= 0 ? 'pos' : 'neg';
     el('kpi-ruikei-sagitama', fmtN(Math.round(ruikeiSagi))+'玉', 'kpi-value '+sagiClass);
     document.getElementById('kpi-ruikei-sub').textContent = '前台引継: '+fmtN(Math.round(prev.sagitama))+'玉';
     el('kpi-hoshu', '¥'+fmtN(hoshu), 'kpi-value pos');
     const startLabel = startLine === 5000 ? '5千スタート' : '1万スタート';
     document.getElementById('kpi-hoshu-sub').textContent =
       ruikeiSagi >= startLine
-        ? '✅ '+startLabel+' | 持玉'+Math.round(mochiRatio*100)+'%' + (koujo > 0 ? ' | 控除¥'+fmtN(koujo) : '')
+        ? '✅ '+startLabel + (koujo > 0 ? ' | 控除¥'+fmtN(koujo) : '')
         : startLabel+' | 残り '+fmtN(startLine - Math.max(0, ruikeiSagi))+'玉';
   } else {
     ruikeiCard.style.display = 'none';
+    document.getElementById('kpi-mochi-block').style.display    = 'none';
+    document.getElementById('kpi-kitai-avg-block').style.display = 'none';
   }
 
   setText('disp-hatsua',     '1/'+k.hatsua.toFixed(1));
