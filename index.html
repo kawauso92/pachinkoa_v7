@@ -1465,7 +1465,7 @@ async function doSend() {
         const data = await res.json();
 
         if (data.success) {
-          // 累積データを保存
+          // 累積データを保存（2台目引き継ぎ用）
           if (uchi !== '自分') {
             addRuikeiData(uchi, date, {
               sagitama: Math.round(sagitama),
@@ -1477,10 +1477,8 @@ async function doSend() {
             });
           }
           showAlert('✅ 送信完了！');
-          setTimeout(() => {
-            localStorage.removeItem('pachinkoLog_v5');
-            location.reload();
-          }, 1500);
+          // 日付・打ち手・店・機種を保持してリロード（引き継ぎ差玉が0になるバグ修正）
+          setTimeout(() => afterSendReload(), 1500);
         } else {
           showAlert('❌ 送信失敗：' + (data.error || '不明なエラー'));
         }
@@ -1497,10 +1495,8 @@ async function doSend() {
           });
         }
         showAlert('✅ 送信完了！');
-        setTimeout(() => {
-          localStorage.removeItem('pachinkoLog_v5');
-          location.reload();
-        }, 1500);
+        // 日付・打ち手・店・機種を保持してリロード（引き継ぎ差玉が0になるバグ修正）
+        setTimeout(() => afterSendReload(), 1500);
       } finally {
         document.getElementById('send-btn').disabled = false;
         document.getElementById('send-btn').textContent = '📤 記録送信';
@@ -1680,6 +1676,28 @@ function loadData() {
     updateHeader();
     updateTrialMode(); // 試しうちモード復元
   } catch(e) {}
+}
+
+// =============================================
+// 送信後リロード（2台目引き継ぎ対応）
+// =============================================
+// 数値入力フィールドだけリセットし、日付・打ち手・店・機種は保持してリロード。
+// これにより2台目でも getRuikeiData(uchi, date) が正しく機能し、
+// 「前台引継」差玉が 0 にならない。
+function afterSendReload() {
+  try {
+    const raw = localStorage.getItem('pachinkoLog_v5');
+    const d   = raw ? JSON.parse(raw) : {};
+    // 数値入力・当たり履歴だけリセット（日付・打ち手・店・機種・持玉比率は保持）
+    ['rotStart','rotEnd','tStart','tEnd',
+     'invest','investB','recover','watashita','moratta',
+     'hitStart','nodama','daiban'].forEach(k => { d[k] = ''; });
+    d.hits = [];
+    localStorage.setItem('pachinkoLog_v5', JSON.stringify(d));
+  } catch(e) {
+    localStorage.removeItem('pachinkoLog_v5');
+  }
+  location.reload();
 }
 
 // =============================================
