@@ -1271,13 +1271,15 @@ function recalc() {
     ruikeiCard.style.display = '';
     const prev = getRuikeiData(uchi, date);
 
-    // ① 累計平均期待時給（稼働時間加重平均）
-    const curKadoH    = kadoH || 0;
-    const curKitaiW   = (kitaiJikyu !== null && curKadoH > 0) ? kitaiJikyu * curKadoH : 0;
-    const totalKadoH  = prev.kadoTotal + curKadoH;
-    const totalKitaiW = prev.kitaiWeight + curKitaiW;
-    const avgKitai    = totalKadoH > 0 ? totalKitaiW / totalKadoH : (kitaiJikyu || 0);
-    const avgKc       = kitaiColor(avgKitai);
+    // ① 累計平均期待時給（仕事量加重平均：AppBと統一）
+    // kitaiJikyu・shigoto両方有効な場合のみ加重、片方nullの場合は加重しない
+    const curShigotoAbs = (kitaiJikyu !== null && shigoto !== null) ? Math.abs(shigoto) : 0;
+    const curKitaiSW    = curShigotoAbs > 0 ? kitaiJikyu * curShigotoAbs : 0;
+    const totalShigoto  = (prev.shigotoTotal || 0) + curShigotoAbs;
+    const avgKitai      = totalShigoto > 0
+      ? ((prev.kitaiShigotoW || 0) + curKitaiSW) / totalShigoto
+      : (kitaiJikyu || 0);
+    const avgKc         = kitaiColor(avgKitai);
 
     // ② 持玉比率（現在台：当セッションのみ、investBallはmoratta込み）
     const curTotalBalls = investBall + invest / 4;
@@ -1432,11 +1434,13 @@ async function doSend() {
   const prev       = getRuikeiData(uchi, date);
   const ruikeiSagi = prev.sagitama + Math.round(sagitama);
   const ruikeiGenkin = prev.genkinInvest + invest;
-  // 加重平均期待時給
-  const curKadoH2   = kadoH || 0;
-  const curKitaiW2  = (kitaiJikyu !== null && curKadoH2 > 0) ? kitaiJikyu * curKadoH2 : 0;
-  const totalKadoH2 = prev.kadoTotal + curKadoH2;
-  const avgKitai2   = totalKadoH2 > 0 ? (prev.kitaiWeight + curKitaiW2) / totalKadoH2 : (kitaiJikyu || 0);
+  // 仕事量加重平均期待時給（kitaiJikyu・shigoto両方有効な場合のみ加重、AppBと統一）
+  const curShigotoAbs2 = (kitaiJikyu !== null && shigoto !== null) ? Math.abs(shigoto) : 0;
+  const curKitaiSW2    = curShigotoAbs2 > 0 ? kitaiJikyu * curShigotoAbs2 : 0;
+  const totalShigoto2  = (prev.shigotoTotal || 0) + curShigotoAbs2;
+  const avgKitai2      = totalShigoto2 > 0
+    ? ((prev.kitaiShigotoW || 0) + curKitaiSW2) / totalShigoto2
+    : (kitaiJikyu || 0);
   const hoshu      = uchi !== '自分' ? calcHoshuLocal(ruikeiSagi, avgKitai2, ruikeiGenkin, uchi) : 0;
   const koujoAmt   = Math.round(invest * 0.107 * 3.5);
   // 持ち玉比率（V列記録用）：当日累計の貯玉投資÷総投資
@@ -1495,12 +1499,12 @@ async function doSend() {
           // 累積データを保存（2台目引き継ぎ用）
           if (uchi !== '自分') {
             addRuikeiData(uchi, date, {
-              sagitama: Math.round(sagitama),
-              genkinInvest: Math.round(invest),
-              kitaiWeight: curKitaiW2,
-              kadoTotal: curKadoH2,
-              choTama: Math.round(investBall),
-              genkinBalls: Math.round(invest / 4),
+              sagitama:      Math.round(sagitama),
+              genkinInvest:  Math.round(invest),
+              choTama:       Math.round(investBall),
+              genkinBalls:   Math.round(invest / 4),
+              kitaiShigotoW: curKitaiSW2,    // 仕事量加重平均用
+              shigotoTotal:  curShigotoAbs2, // 仕事量合計
             });
           }
           showAlert('✅ 送信完了！');
@@ -1513,12 +1517,12 @@ async function doSend() {
         // GASはCORSでレスポンスが取れないが送信自体は成功している
         if (uchi !== '自分') {
           addRuikeiData(uchi, date, {
-            sagitama: Math.round(sagitama),
-            genkinInvest: Math.round(invest),
-            kitaiWeight: curKitaiW2,
-            kadoTotal: curKadoH2,
-            choTama: Math.round(investBall),
-            genkinBalls: Math.round(invest / 4),
+            sagitama:      Math.round(sagitama),
+            genkinInvest:  Math.round(invest),
+            choTama:       Math.round(investBall),
+            genkinBalls:   Math.round(invest / 4),
+            kitaiShigotoW: curKitaiSW2,    // 仕事量加重平均用
+            shigotoTotal:  curShigotoAbs2, // 仕事量合計
           });
         }
         showAlert('✅ 送信完了！');
@@ -1545,7 +1549,7 @@ function calcHoshu(uchi, sagitama) {
 // =============================================
 // 累積データ管理（打ち手別・日付別・JSON）
 // =============================================
-const RUIKEI_EMPTY = { sagitama: 0, genkinInvest: 0, kitaiWeight: 0, kadoTotal: 0, choTama: 0, genkinBalls: 0 };
+const RUIKEI_EMPTY = { sagitama: 0, genkinInvest: 0, kitaiWeight: 0, kadoTotal: 0, choTama: 0, genkinBalls: 0, kitaiShigotoW: 0, shigotoTotal: 0 };
 function getRuikeiData(uchi, date) {
   if (!uchi || uchi === '自分') return {...RUIKEI_EMPTY};
   try {
@@ -1558,12 +1562,14 @@ function addRuikeiData(uchi, date, data) {
   const key = 'ruikei_v7_' + date + '_' + uchi;
   const p = getRuikeiData(uchi, date);
   localStorage.setItem(key, JSON.stringify({
-    sagitama:     p.sagitama     + (data.sagitama     || 0),
-    genkinInvest: p.genkinInvest + (data.genkinInvest || 0),
-    kitaiWeight:  p.kitaiWeight  + (data.kitaiWeight  || 0),
-    kadoTotal:    p.kadoTotal    + (data.kadoTotal    || 0),
-    choTama:      p.choTama      + (data.choTama      || 0),
-    genkinBalls:  p.genkinBalls  + (data.genkinBalls  || 0),
+    sagitama:      p.sagitama      + (data.sagitama      || 0),
+    genkinInvest:  p.genkinInvest  + (data.genkinInvest  || 0),
+    kitaiWeight:   p.kitaiWeight   + (data.kitaiWeight   || 0),  // 旧フィールド（後方互換）
+    kadoTotal:     p.kadoTotal     + (data.kadoTotal     || 0),  // 旧フィールド（後方互換）
+    choTama:       p.choTama       + (data.choTama       || 0),
+    genkinBalls:   p.genkinBalls   + (data.genkinBalls   || 0),
+    kitaiShigotoW: (p.kitaiShigotoW || 0) + (data.kitaiShigotoW || 0), // 仕事量加重平均用
+    shigotoTotal:  (p.shigotoTotal  || 0) + (data.shigotoTotal  || 0), // 仕事量合計
   }));
 }
 // 後方互換ヘルパー
