@@ -274,6 +274,9 @@ select.input-field{cursor:pointer;appearance:none;background-image:url("data:ima
             <div class="kpi-sub" id="kpi-hoshu-sub">期待時給で開始ライン判定 + 持玉控除</div>
           </div>
         </div>
+        <div style="margin-top:8px;text-align:right;">
+          <button onclick="resetRuikeiData()" style="font-size:11px;padding:3px 10px;background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--text2);cursor:pointer;">AppB削除後リセット</button>
+        </div>
       </div>
     </div>
 
@@ -1590,6 +1593,21 @@ function addRuikeiData(uchi, date, data) {
     kitaiShigotoW: (p.kitaiShigotoW || 0) + (data.kitaiShigotoW || 0), // 仕事量加重平均用
     shigotoTotal:  (p.shigotoTotal  || 0) + (data.shigotoTotal  || 0), // 仕事量合計
   }));
+}
+function deleteRuikeiData(uchi, date) {
+  if (!uchi || uchi === '自分') return;
+  localStorage.removeItem('ruikei_v7_' + date + '_' + uchi);
+}
+// AppB削除後に累計キャッシュをクリアするUI用
+function resetRuikeiData() {
+  const uchiEl = document.querySelector('#uchi-chips .chip.selected');
+  const uchi   = uchiEl ? uchiEl.textContent : '自分';
+  const date   = document.getElementById('in-date').value;
+  if (!uchi || uchi === '自分' || !date) return;
+  showConfirm(
+    `「${uchi}」${date} の累計データをリセットしますか？\nAppBで記録を削除した後に使用してください。`,
+    () => { deleteRuikeiData(uchi, date); recalc(); }
+  );
 }
 // 後方互換ヘルパー
 function getRuikeiSagitama(uchi, date) { return getRuikeiData(uchi, date).sagitama; }
