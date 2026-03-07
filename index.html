@@ -1283,14 +1283,14 @@ function recalc() {
 
     // ② 持玉比率（現在台：当セッションのみ）
     // 持玉使用 = 当たり出玉のうち持ち帰らず打ち続けた分（≥0）
-    const mochiUsed     = Math.max(0, hitBalls - recover);
-    const curMochiAll   = investBall + mochiUsed;          // 貯玉＋持玉使用の合計
-    const curTotalBalls = invest / 4 + curMochiAll;        // 総投資玉（現金＋貯玉＋持玉）
+    const mochiUsed     = Math.max(0, hitBalls - recover); // recoverはwatashita込み
+    const curMochiAll   = investBall + mochiUsed;          // 貯玉(moratta込み)＋持玉使用
+    const curTotalBalls = invest / (100 / kokan) + curMochiAll; // 総投資玉（kokan対応）
     const curMochiPct   = curTotalBalls > 0 ? Math.round(curMochiAll / curTotalBalls * 100) : null;
 
     // ③ 持玉比率（累計：当日全台の自然加重平均）
-    const cumChoTama  = prev.choTama + investBall + mochiUsed; // 貯玉＋持玉使用を累積
-    const cumGenBalls = prev.genkinBalls + invest / 4;
+    const cumChoTama  = prev.choTama + investBall + mochiUsed; // 貯玉(moratta込み)＋持玉使用を累積
+    const cumGenBalls = prev.genkinBalls + invest / (100 / kokan); // kokan対応
     const cumTotal    = cumChoTama + cumGenBalls;
     const cumMochiPct = cumTotal > 0 ? Math.round(cumChoTama / cumTotal * 100) : null;
 
@@ -1352,10 +1352,14 @@ async function doSend() {
   if (!date)    { showAlert('日付を入力してください'); return; }
 
   // 計算値を収集
-  const invest     = parseFloat(document.getElementById('in-invest').value)      || 0;
-  const investBall = parseFloat(document.getElementById('in-invest-ball').value) || 0;
-  const recover    = parseFloat(document.getElementById('in-recover').value)     || 0;
-  const rotStart   = parseFloat(document.getElementById('in-rot-start').value)   || 0;
+  const invest        = parseFloat(document.getElementById('in-invest').value)      || 0;
+  const investBallRaw = parseFloat(document.getElementById('in-invest-ball').value) || 0;
+  const recoverRaw    = parseFloat(document.getElementById('in-recover').value)     || 0;
+  const watashita     = parseFloat(document.getElementById('in-watashita').value)   || 0; // 渡した玉
+  const moratta       = parseFloat(document.getElementById('in-moratta').value)     || 0; // もらった玉
+  const investBall    = investBallRaw + moratta; // もらった玉を投資玉に加算
+  const recover       = recoverRaw + watashita;  // 渡した玉を回収玉に加算
+  const rotStart      = parseFloat(document.getElementById('in-rot-start').value)   || 0;
   const rotEnd     = parseFloat(document.getElementById('in-rot-end').value)     || 0;
   const tStart     = document.getElementById('in-time-start').value;
   const tEnd       = document.getElementById('in-time-end').value;
@@ -1446,12 +1450,12 @@ async function doSend() {
     : (kitaiJikyu || 0);
   const hoshu      = uchi !== '自分' ? calcHoshuLocal(ruikeiSagi, avgKitai2, ruikeiGenkin, uchi) : 0;
   const koujoAmt   = Math.round(invest * 0.107 * 3.5);
-  // 持ち玉比率（V列記録用）：当日累計の（貯玉＋持玉使用）÷総投資
-  const mochiUsed    = Math.max(0, hitBalls - recover); // 出玉を持ち帰らず打ち続けた持玉
-  const sendChoTama  = prev.choTama + investBall + mochiUsed;
-  const sendGenBalls = prev.genkinBalls + invest / 4;
-  const sendTotal    = sendChoTama + sendGenBalls;
-  const mochiRatioSend = sendTotal > 0 ? parseFloat((sendChoTama / sendTotal).toFixed(4)) : 1;
+  // 持ち玉比率（V列記録用）：当セッションの持玉÷総投資玉
+  // investBall = 貯玉(moratta込み)、mochiTama = 当たり出玉のうち持ち帰らなかった分
+  const mochiTama      = Math.max(0, hitBalls - recover); // recoverはwatashita込み
+  const mochiTotal     = investBall + mochiTama;          // investBallはmoratta込み
+  const soToushiTama   = invest / (100 / kokan) + mochiTotal;
+  const mochiRatioSend = soToushiTama > 0 ? parseFloat((mochiTotal / soToushiTama).toFixed(4)) : 1;
 
   // 送信確認
   const confirmMsg = isTrial
@@ -1485,11 +1489,18 @@ async function doSend() {
           todayHits:   todayHits || 0,
           hitBalls:    Math.round(hitBalls || 0),
           jitsu1R:     soRounds > 0 ? parseFloat((hitBalls / soRounds).toFixed(1)) : '',
-          genkinInvest:    Math.round(invest),         // W列：現金投資額(円)
-          mochiRatio:      mochiRatioSend,            // V列：持ち玉比率（0〜1の小数）
-          choTamaInvest:   Math.round(investBall),    // 参考：貯玉投資(発)
-          genkinInvestBalls: Math.round(invest / 4),  // 参考：現金投資(発)
+          genkinInvest:    Math.round(invest),              // W列：現金投資額(円)
+          mochiRatio:      mochiRatioSend,               // V列：持ち玉比率（0〜1の小数）
+          choTamaInvest:   Math.round(investBallRaw),    // 参考：貯玉投資(発、moratta除く)
+          genkinInvestBalls: Math.round(invest / (100 / kokan)), // 参考：現金投資(発)
+          watashita:       Math.round(watashita),        // 渡した玉(発)
+          moratta:         Math.round(moratta),          // もらった玉(発)
         };
+        console.log('[doSend] payload:', JSON.stringify(payload, null, 2));
+        console.log('[doSend] 内訳 watashita:', watashita, 'moratta:', moratta,
+          '| investBall(調整後):', investBall, 'recover(調整後):', recover,
+          '| mochiTama:', mochiTama, 'mochiTotal:', mochiTotal,
+          '| soToushiTama:', soToushiTama, '→ mochiRatio:', mochiRatioSend);
 
         const res = await fetch(GAS_URL, {
           method: 'POST',
@@ -1505,8 +1516,8 @@ async function doSend() {
             addRuikeiData(uchi, date, {
               sagitama:      Math.round(sagitama),
               genkinInvest:  Math.round(invest),
-              choTama:       Math.round(investBall + mochiUsed), // 貯玉＋持玉使用を保存
-              genkinBalls:   Math.round(invest / 4),
+              choTama:       Math.round(investBall + mochiTama), // 貯玉(moratta込み)＋持玉使用を保存
+              genkinBalls:   Math.round(invest / (100 / kokan)),
               kitaiShigotoW: curKitaiSW2,    // 仕事量加重平均用
               shigotoTotal:  curShigotoAbs2, // 仕事量合計
             });
