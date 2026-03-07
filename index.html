@@ -1281,12 +1281,15 @@ function recalc() {
       : (kitaiJikyu || 0);
     const avgKc         = kitaiColor(avgKitai);
 
-    // ② 持玉比率（現在台：当セッションのみ、investBallはmoratta込み）
-    const curTotalBalls = investBall + invest / 4;
-    const curMochiPct   = curTotalBalls > 0 ? Math.round(investBall / curTotalBalls * 100) : null;
+    // ② 持玉比率（現在台：当セッションのみ）
+    // 持玉使用 = 当たり出玉のうち持ち帰らず打ち続けた分（≥0）
+    const mochiUsed     = Math.max(0, hitBalls - recover);
+    const curMochiAll   = investBall + mochiUsed;          // 貯玉＋持玉使用の合計
+    const curTotalBalls = invest / 4 + curMochiAll;        // 総投資玉（現金＋貯玉＋持玉）
+    const curMochiPct   = curTotalBalls > 0 ? Math.round(curMochiAll / curTotalBalls * 100) : null;
 
     // ③ 持玉比率（累計：当日全台の自然加重平均）
-    const cumChoTama  = prev.choTama + investBall;
+    const cumChoTama  = prev.choTama + investBall + mochiUsed; // 貯玉＋持玉使用を累積
     const cumGenBalls = prev.genkinBalls + invest / 4;
     const cumTotal    = cumChoTama + cumGenBalls;
     const cumMochiPct = cumTotal > 0 ? Math.round(cumChoTama / cumTotal * 100) : null;
@@ -1443,8 +1446,9 @@ async function doSend() {
     : (kitaiJikyu || 0);
   const hoshu      = uchi !== '自分' ? calcHoshuLocal(ruikeiSagi, avgKitai2, ruikeiGenkin, uchi) : 0;
   const koujoAmt   = Math.round(invest * 0.107 * 3.5);
-  // 持ち玉比率（V列記録用）：当日累計の貯玉投資÷総投資
-  const sendChoTama  = prev.choTama + investBall;
+  // 持ち玉比率（V列記録用）：当日累計の（貯玉＋持玉使用）÷総投資
+  const mochiUsed    = Math.max(0, hitBalls - recover); // 出玉を持ち帰らず打ち続けた持玉
+  const sendChoTama  = prev.choTama + investBall + mochiUsed;
   const sendGenBalls = prev.genkinBalls + invest / 4;
   const sendTotal    = sendChoTama + sendGenBalls;
   const mochiRatioSend = sendTotal > 0 ? parseFloat((sendChoTama / sendTotal).toFixed(4)) : 1;
@@ -1501,7 +1505,7 @@ async function doSend() {
             addRuikeiData(uchi, date, {
               sagitama:      Math.round(sagitama),
               genkinInvest:  Math.round(invest),
-              choTama:       Math.round(investBall),
+              choTama:       Math.round(investBall + mochiUsed), // 貯玉＋持玉使用を保存
               genkinBalls:   Math.round(invest / 4),
               kitaiShigotoW: curKitaiSW2,    // 仕事量加重平均用
               shigotoTotal:  curShigotoAbs2, // 仕事量合計
@@ -1519,7 +1523,7 @@ async function doSend() {
           addRuikeiData(uchi, date, {
             sagitama:      Math.round(sagitama),
             genkinInvest:  Math.round(invest),
-            choTama:       Math.round(investBall),
+            choTama:       Math.round(investBall + mochiUsed), // 貯玉＋持玉使用を保存
             genkinBalls:   Math.round(invest / 4),
             kitaiShigotoW: curKitaiSW2,    // 仕事量加重平均用
             shigotoTotal:  curShigotoAbs2, // 仕事量合計
