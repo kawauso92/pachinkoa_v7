@@ -1,0 +1,1778 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>PACHINKO LOG</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#080c10;--surface:#0d1117;--surface2:#141b24;--surface3:#1c2530;
+  --border:#1e2d3d;--accent:#00d4ff;--green:#39ff6e;--warn:#ffcc00;
+  --red:#ff4466;--text:#e2e8f0;--text2:#8899aa;--text3:#607080;
+  --radius:12px;--radius-sm:8px;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+body{background:var(--bg);color:var(--text);font-family:'Noto Sans JP',sans-serif;min-height:100vh;max-width:430px;margin:0 auto;overflow-x:hidden;}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(0,212,255,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,212,255,0.03) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0;}
+.app{position:relative;z-index:1;padding-bottom:80px;}
+
+/* Header */
+.header{padding:14px 16px 12px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);background:rgba(8,12,16,0.95);backdrop-filter:blur(10px);position:sticky;top:0;z-index:100;}
+.app-title{font-family:'Rajdhani',sans-serif;font-size:18px;font-weight:700;letter-spacing:3px;color:var(--accent);}
+.session-info{font-size:11px;color:var(--text2);font-family:'JetBrains Mono',monospace;margin-top:2px;}
+.status-dot{width:7px;height:7px;background:var(--green);border-radius:50%;box-shadow:0 0 7px var(--green);animation:pulse 2s infinite;margin-right:5px;display:inline-block;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+
+/* Tabs */
+.tab-content{display:none;padding:14px 14px 0;}
+.tab-content.active{display:block;}
+
+/* Section */
+.section{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:10px;}
+.section-header{display:flex;align-items:center;gap:8px;margin-bottom:12px;}
+.section-label{font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:600;letter-spacing:2px;color:var(--text2);text-transform:uppercase;white-space:nowrap;}
+.section-line{flex:1;height:1px;background:var(--border);}
+
+/* KPI */
+.kpi-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;}
+.kpi-card{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;position:relative;overflow:hidden;}
+.kpi-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--text3);}
+.kpi-card.pos::before{background:var(--green);}
+.kpi-card.neg::before{background:var(--red);}
+.kpi-card.info::before{background:var(--accent);}
+.kpi-card.warn::before{background:var(--warn);}
+.kpi-label{font-size:9px;color:var(--text2);letter-spacing:1px;text-transform:uppercase;font-family:'JetBrains Mono',monospace;margin-bottom:4px;}
+.kpi-value{font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:700;line-height:1.2;color:var(--text2);}
+.kpi-value.pos{color:var(--green);}
+.kpi-value.neg{color:var(--red);}
+.kpi-value.info{color:var(--accent);}
+.kpi-value.warn{color:var(--warn);}
+.kpi-sub{font-size:9px;color:var(--text2);margin-top:3px;font-family:'JetBrains Mono',monospace;}
+
+/* Wide KPI card (収支+時給) */
+.kpi-wide{grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;gap:0;}
+.kpi-wide-left{padding:10px 12px;border-right:1px solid var(--border);}
+.kpi-wide-right{padding:10px 12px;}
+
+/* 期待時給 big card */
+.kitai-card{background:linear-gradient(135deg,rgba(0,212,255,0.08),transparent);border:1px solid rgba(0,212,255,0.25);border-radius:var(--radius-sm);padding:14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;}
+.kitai-val{font-family:'JetBrains Mono',monospace;font-size:28px;font-weight:700;color:var(--accent);}
+
+/* Inputs */
+.input-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.input-group{display:flex;flex-direction:column;gap:5px;}
+.input-label{font-size:9px;color:var(--text2);letter-spacing:1px;text-transform:uppercase;font-family:'JetBrains Mono',monospace;}
+.input-field{background:var(--surface3);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);padding:9px 10px;font-size:16px;font-family:'JetBrains Mono',monospace;font-weight:700;width:100%;outline:none;transition:border-color 0.2s;-webkit-appearance:none;}
+.input-field:focus{border-color:var(--accent);box-shadow:0 0 0 2px rgba(0,212,255,0.1);}
+.input-field::placeholder{color:var(--text3);font-weight:400;}
+/* 手入力 vs 自動計算 視覚区別 */
+.input-label{font-size:9px;color:var(--text2);letter-spacing:1px;margin-bottom:5px;display:flex;align-items:center;gap:5px;}
+.badge-manual{font-size:8px;padding:1px 5px;border-radius:3px;background:rgba(0,212,255,0.15);color:var(--accent);border:1px solid rgba(0,212,255,0.3);letter-spacing:0;font-family:'JetBrains Mono',monospace;}
+.badge-auto{font-size:8px;padding:1px 5px;border-radius:3px;background:rgba(57,255,110,0.12);color:var(--green);border:1px solid rgba(57,255,110,0.3);letter-spacing:0;font-family:'JetBrains Mono',monospace;}
+.input-field.is-manual{border-color:rgba(0,212,255,0.35);}
+.input-field.is-manual:focus{border-color:var(--accent);box-shadow:0 0 0 2px rgba(0,212,255,0.15);}
+.auto-display{background:rgba(57,255,110,0.05);border:1px solid rgba(57,255,110,0.2);border-radius:var(--radius-sm);padding:9px 10px;font-size:16px;font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--green);width:100%;}
+select.input-field{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%238899aa' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:28px;}
+.cur-wrap{position:relative;}
+.cur-wrap .cur{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text2);font-family:'JetBrains Mono',monospace;font-size:13px;pointer-events:none;}
+.cur-wrap .input-field{padding-left:24px;}
+
+/* Rotation */
+.rotation-display{background:linear-gradient(135deg,rgba(0,212,255,0.05),transparent);border:1px solid rgba(0,212,255,0.2);border-radius:var(--radius-sm);padding:12px;margin-bottom:10px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;text-align:center;}
+.rot-val{font-family:'JetBrains Mono',monospace;font-size:19px;font-weight:700;color:var(--accent);}
+.rot-label{font-size:9px;color:var(--text2);letter-spacing:1px;margin-top:2px;text-transform:uppercase;}
+
+/* Summary rows */
+.summary-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;}
+.summary-row:last-child{border-bottom:none;}
+.summary-row .lbl{color:var(--text2);font-size:12px;}
+.summary-row .val{font-family:'JetBrains Mono',monospace;font-weight:700;}
+
+/* Badges */
+.badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:4px;font-size:11px;font-family:'JetBrains Mono',monospace;font-weight:700;}
+.badge.up{background:rgba(57,255,110,0.1);color:var(--green);}
+.badge.dn{background:rgba(255,68,102,0.1);color:var(--red);}
+.badge.info{background:rgba(0,212,255,0.1);color:var(--accent);}
+.badge.neu{background:rgba(136,153,170,0.1);color:var(--text2);}
+
+/* Hit list */
+.hit-list{display:flex;flex-direction:column;gap:8px;margin-bottom:8px;}
+.hit-row{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;}
+.hit-row-top{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+.hit-num{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text3);min-width:18px;}
+.hit-type-badge{font-size:10px;color:var(--text2);flex:1;}
+.hit-total{font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:700;color:var(--green);}
+.hit-del{background:rgba(255,68,102,0.1);border:1px solid rgba(255,68,102,0.2);color:var(--red);padding:4px 10px;border-radius:4px;font-size:11px;cursor:pointer;font-family:'Rajdhani',sans-serif;font-weight:600;flex-shrink:0;}
+.round-chips{display:flex;flex-wrap:wrap;gap:5px;}
+.round-chip{background:var(--surface3);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--text2);}
+.add-hit-btn{width:100%;background:rgba(0,212,255,0.06);border:1px dashed rgba(0,212,255,0.3);border-radius:var(--radius-sm);color:var(--accent);padding:12px;font-size:12px;font-family:'Rajdhani',sans-serif;font-weight:600;letter-spacing:2px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;}
+
+/* Modal */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:300;backdrop-filter:blur(4px);align-items:flex-end;justify-content:center;}
+.modal-overlay.show{display:flex;}
+.modal{background:var(--surface);border:1px solid var(--border);border-top:2px solid var(--accent);border-radius:var(--radius) var(--radius) 0 0;padding:20px 16px 36px;width:100%;max-width:430px;max-height:88vh;overflow-y:auto;position:relative;}
+.modal-title{font-family:'Rajdhani',sans-serif;font-size:16px;font-weight:700;letter-spacing:2px;color:var(--accent);margin-bottom:4px;}
+.modal-subtitle{font-size:11px;color:var(--text2);margin-bottom:16px;}
+.modal-close{position:absolute;right:16px;top:16px;background:none;border:none;color:var(--text2);font-size:22px;cursor:pointer;line-height:1;padding:4px;}
+.round-input-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;}
+.round-input-item{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px;}
+.round-input-name{font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--accent);margin-bottom:4px;font-weight:700;}
+.round-input-sub{font-size:9px;color:var(--text3);margin-bottom:8px;}
+.round-counter{display:flex;align-items:center;gap:8px;justify-content:center;}
+.counter-btn{background:var(--surface3);border:1px solid var(--border);color:var(--text);width:34px;height:34px;border-radius:6px;font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;line-height:1;}
+.counter-btn:active{background:rgba(0,212,255,0.15);border-color:var(--accent);}
+.counter-val{font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:700;color:var(--text);min-width:30px;text-align:center;}
+.auto-calc-row{background:rgba(57,255,110,0.05);border:1px solid rgba(57,255,110,0.15);border-radius:var(--radius-sm);padding:10px 12px;display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;}
+.auto-calc-label{font-size:10px;color:var(--text2);}
+.auto-calc-val{font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:700;color:var(--green);}
+.modal-confirm-btn{width:100%;background:linear-gradient(135deg,rgba(0,212,255,0.2),rgba(0,212,255,0.05));border:1px solid rgba(0,212,255,0.4);border-radius:var(--radius);color:var(--accent);padding:14px;font-size:13px;font-family:'Rajdhani',sans-serif;font-weight:700;letter-spacing:3px;cursor:pointer;}
+
+/* Border tab */
+.ratio-label-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+.ratio-title{font-size:11px;color:var(--text2);font-family:'JetBrains Mono',monospace;}
+.ratio-val-display{font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:700;color:var(--warn);}
+.ratio-slider{width:100%;-webkit-appearance:none;height:4px;border-radius:2px;background:var(--surface3);outline:none;margin-bottom:8px;}
+.ratio-slider::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;background:var(--warn);cursor:pointer;box-shadow:0 0 8px rgba(255,204,0,0.4);}
+.ratio-presets{display:flex;gap:6px;flex-wrap:wrap;}
+.ratio-preset{padding:5px 12px;border-radius:16px;border:1px solid var(--border);background:var(--surface3);color:var(--text2);font-size:12px;cursor:pointer;font-family:'JetBrains Mono',monospace;}
+.ratio-preset.active{background:rgba(255,204,0,0.15);border-color:var(--warn);color:var(--warn);}
+
+/* Settings */
+.chip-select{display:flex;flex-wrap:wrap;gap:7px;}
+.chip{padding:6px 14px;border-radius:20px;border:1px solid var(--border);background:var(--surface3);color:var(--text2);font-size:13px;cursor:pointer;transition:all 0.15s;}
+.chip.selected{background:rgba(0,212,255,0.15);border-color:var(--accent);color:var(--accent);}
+.setting-row{margin-bottom:16px;}
+.auto-badge{display:inline-flex;align-items:center;padding:2px 7px;border-radius:4px;font-size:9px;font-family:'JetBrains Mono',monospace;background:rgba(57,255,110,0.1);color:var(--green);border:1px solid rgba(57,255,110,0.2);margin-left:6px;}
+.action-btn{width:100%;border-radius:var(--radius);padding:15px;font-size:15px;font-family:'Rajdhani',sans-serif;font-weight:700;letter-spacing:3px;cursor:pointer;margin-top:10px;text-transform:uppercase;}
+.action-btn.send{background:linear-gradient(135deg,rgba(0,212,255,0.2),rgba(0,212,255,0.05));border:1px solid rgba(0,212,255,0.4);color:var(--accent);box-shadow:0 0 20px rgba(0,212,255,0.1);}
+.action-btn.reset{background:rgba(255,68,102,0.08);border:1px solid rgba(255,68,102,0.3);color:var(--red);}
+/* 報酬確定ボタン・結果パネルはAppBに移動したため削除 */
+
+/* Guard */
+.guard{display:none;flex-direction:column;align-items:center;justify-content:center;padding:50px 20px;text-align:center;gap:12px;cursor:pointer;}
+.guard.show{display:flex;}
+.guard-icon{font-size:44px;}
+.guard-msg{color:var(--text2);font-size:14px;line-height:1.8;}
+.guard-action{background:rgba(0,212,255,0.1);border:1px solid rgba(0,212,255,0.3);color:var(--accent);padding:8px 20px;border-radius:20px;font-size:13px;font-family:'Rajdhani',sans-serif;font-weight:700;letter-spacing:2px;}
+
+/* Save indicator */
+.save-indicator{position:fixed;top:70px;right:16px;background:rgba(57,255,110,0.15);border:1px solid rgba(57,255,110,0.3);border-radius:6px;padding:4px 10px;font-size:10px;color:var(--green);font-family:'JetBrains Mono',monospace;opacity:0;transition:opacity 0.3s;z-index:150;pointer-events:none;}
+.save-indicator.show{opacity:1;}
+
+/* スケルトンUI */
+@keyframes skeleton-wave {
+  0%{background-position:200% center}
+  100%{background-position:-200% center}
+}
+.skeleton{
+  background:linear-gradient(90deg,var(--surface2) 25%,var(--surface3) 50%,var(--surface2) 75%);
+  background-size:200% 100%;
+  animation:skeleton-wave 1.5s ease infinite;
+  border-radius:var(--radius-sm);
+}
+.sk-kpi-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;}
+.sk-kpi-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;}
+.sk-label{height:10px;width:60%;margin-bottom:8px;}
+.sk-value{height:22px;width:80%;}
+.sk-value-wide{height:30px;width:90%;}
+.sk-section{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:10px;}
+.sk-section-header{height:10px;width:40%;margin-bottom:14px;}
+.sk-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;}
+.sk-input{height:38px;}
+
+/* Bottom Nav */
+.bottom-nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;background:rgba(13,17,23,0.97);backdrop-filter:blur(20px);border-top:1px solid var(--border);display:flex;z-index:200;}
+.nav-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:9px 4px 11px;cursor:pointer;position:relative;}
+.nav-item.active::before{content:'';position:absolute;top:0;left:20%;right:20%;height:2px;background:var(--accent);border-radius:0 0 4px 4px;box-shadow:0 0 8px var(--accent);}
+.nav-icon{font-size:19px;margin-bottom:2px;}
+.nav-label{font-size:9px;letter-spacing:1px;color:var(--text3);text-transform:uppercase;font-family:'Rajdhani',sans-serif;font-weight:600;}
+.nav-item.active .nav-label{color:var(--accent);}
+</style>
+</head>
+<body>
+<div class="app">
+<div class="save-indicator" id="saveIndicator">SAVED</div>
+
+<div class="header">
+  <div>
+    <div class="app-title">PACHINKO LOG <span style="font-size:10px;color:var(--text3);letter-spacing:1px;">v7</span></div>
+    <div class="session-info"><span class="status-dot"></span><span id="header-info">— / —</span></div>
+  </div>
+  <button id="refreshBtn" style="background:none;border:1px solid var(--border);border-radius:var(--radius-sm);padding:6px 10px;color:var(--accent);font-size:12px;font-family:'Rajdhani',sans-serif;cursor:pointer;letter-spacing:1px;">🔄 更新</button>
+</div>
+
+<!-- ===== メイン ===== -->
+<div class="tab-content active" id="tab-main">
+  <div class="guard" id="guard-main">
+    <div class="guard-icon">⚙️</div>
+    <div class="guard-msg">先に設定タブで<br>店と機種を選択してください</div>
+    <div class="guard-action">設定へ →</div>
+  </div>
+  <div id="main-body" style="display:none;">
+    <!-- 収支＋時給 ワイドカード -->
+    <div class="kpi-grid" style="margin-bottom:10px;">
+      <div class="kpi-card" id="card-kosshi" style="grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;">
+        <div style="padding:10px 12px;border-right:1px solid var(--border);">
+          <div class="kpi-label">収支</div>
+          <div class="kpi-value" id="kpi-kosshi">—</div>
+          <div class="kpi-sub" id="kpi-sagitama">差玉 —</div>
+        </div>
+        <div style="padding:10px 12px;">
+          <div class="kpi-label">時給</div>
+          <div class="kpi-value" id="kpi-jikyu">—</div>
+          <div class="kpi-sub" id="kpi-kado">稼働 —</div>
+        </div>
+      </div>
+      <!-- 期待時給 big -->
+      <div class="kpi-card info" style="grid-column:1/-1;padding:12px 14px;">
+        <div class="kpi-label">期待時給</div>
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-top:4px;">
+          <div>
+            <div class="kpi-value info" id="kpi-kitai" style="font-size:26px;">—</div>
+            <div class="kpi-sub" id="kpi-kitai-sub">—</div>
+          </div>
+          <!-- 持玉比率（代打ち時のみ表示） -->
+          <div id="kpi-mochi-block" style="display:none;text-align:right;">
+            <div class="kpi-label" style="text-align:right;">持玉比率</div>
+            <div class="kpi-value" id="kpi-mochi-val" style="font-size:22px;margin-top:2px;">—%</div>
+            <div class="kpi-sub" id="kpi-mochi-ruikei" style="text-align:right;">累計: —%</div>
+          </div>
+        </div>
+        <!-- 累計平均期待時給（代打ち時のみ表示） -->
+        <div id="kpi-kitai-avg-block" style="display:none;margin-top:8px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.06);">
+          <span style="font-size:9px;color:var(--text2);font-family:'JetBrains Mono',monospace;letter-spacing:1px;">累計平均期待時給</span>
+          <span id="kpi-kitai-avg-val" style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;margin-left:8px;">—</span>
+          <span id="kpi-kitai-avg-label" style="font-size:11px;margin-left:4px;">—</span>
+        </div>
+      </div>
+      <!-- 仕事量 -->
+      <div class="kpi-card" id="card-shigoto">
+        <div class="kpi-label">仕事量</div>
+        <div class="kpi-value" id="kpi-shigoto">—</div>
+        <div class="kpi-sub" id="kpi-shigoto-sub">時給 —</div>
+      </div>
+      <!-- 運 -->
+      <div class="kpi-card" id="card-un">
+        <div class="kpi-label">運(%)</div>
+        <div class="kpi-value" id="kpi-un">—</div>
+        <div class="kpi-sub">理論比</div>
+      </div>
+      <!-- 累積差玉・報酬（代打ちのみ表示） -->
+      <div class="kpi-card" id="card-ruikei" style="grid-column:1/-1;display:none;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;">
+          <div style="padding:4px 8px 4px 0;border-right:1px solid var(--border);">
+            <div class="kpi-label">累積差玉（本日）</div>
+            <div class="kpi-value" id="kpi-ruikei-sagitama">—</div>
+            <div class="kpi-sub" id="kpi-ruikei-sub">前台引継: 0玉</div>
+          </div>
+          <div style="padding:4px 0 4px 8px;">
+            <div class="kpi-label">報酬（自動計算）</div>
+            <div class="kpi-value pos" id="kpi-hoshu">¥0</div>
+            <div class="kpi-sub" id="kpi-hoshu-sub">期待時給で開始ライン判定 + 持玉控除</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section" id="section-rotation">
+      <div class="section-header"><div class="section-label">回転数</div><div class="section-line"></div></div>
+      <div class="rotation-display">
+        <div><div class="rot-val" id="disp-total-rot">—</div><div class="rot-label">総回転 <span class="badge-auto">AUTO</span></div></div>
+        <div><div class="rot-val" id="disp-normal-rot">—</div><div class="rot-label">通常回転 <span class="badge-auto">AUTO</span></div></div>
+        <div><div class="rot-val" id="disp-rot-rate">—</div><div class="rot-label">回転率 <span class="badge-auto">AUTO</span></div></div>
+      </div>
+      <div class="input-grid">
+        <div class="input-group">
+          <div class="input-label">開始回転 <span class="badge-manual">入力</span></div>
+          <input class="input-field is-manual" type="number" inputmode="numeric" placeholder="0" id="in-rot-start" oninput="recalc();save()">
+        </div>
+        <div class="input-group">
+          <div class="input-label">終了回転 <span class="badge-manual">入力</span></div>
+          <input class="input-field is-manual" type="number" inputmode="numeric" placeholder="0" id="in-rot-end" oninput="recalc();save()">
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-header"><div class="section-label">収支入力</div><div class="section-line"></div></div>
+      <div class="input-grid">
+        <div class="input-group" id="time-start-group">
+          <div class="input-label">開始時間 <span class="badge-manual">入力</span></div>
+          <input class="input-field is-manual" type="time" id="in-time-start" oninput="recalc();save()">
+        </div>
+        <div class="input-group" id="time-end-group">
+          <div class="input-label">終了時間 <span class="badge-manual">入力</span></div>
+          <input class="input-field is-manual" type="time" id="in-time-end" oninput="recalc();save()">
+        </div>
+        <div class="input-group">
+          <div class="input-label">投資金額 <span class="badge-manual">入力</span></div>
+          <div class="cur-wrap"><span class="cur">¥</span>
+          <input class="input-field is-manual" type="number" inputmode="numeric" placeholder="0" id="in-invest" oninput="recalc();save()"></div>
+        </div>
+        <div class="input-group">
+          <div class="input-label">投資玉数 <span class="badge-manual">入力</span></div>
+          <input class="input-field is-manual" type="number" inputmode="numeric" placeholder="0" id="in-invest-ball" oninput="recalc();save()">
+        </div>
+        <div class="input-group">
+          <div class="input-label">回収玉数 <span class="badge-manual">入力</span></div>
+          <input class="input-field is-manual" type="number" inputmode="numeric" placeholder="0" id="in-recover" oninput="recalc();save()">
+        </div>
+        <div class="input-group">
+          <div class="input-label">渡した玉 <span class="badge-manual">入力</span></div>
+          <input class="input-field is-manual" type="number" inputmode="numeric" placeholder="0" id="in-watashita" oninput="recalc();save()">
+        </div>
+        <div class="input-group">
+          <div class="input-label">もらった玉 <span class="badge-manual">入力</span></div>
+          <input class="input-field is-manual" type="number" inputmode="numeric" placeholder="0" id="in-moratta" oninput="recalc();save()">
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 当たり ===== -->
+<div class="tab-content" id="tab-hit">
+  <div class="guard" id="guard-hit">
+    <div class="guard-icon">⚙️</div>
+    <div class="guard-msg">先に設定タブで<br>店と機種を選択してください</div>
+    <div class="guard-action">設定へ →</div>
+  </div>
+  <div id="hit-body" style="display:none;">
+    <div class="section">
+      <div class="section-header"><div class="section-label">当たりサマリー</div><div class="section-line"></div></div>
+      <div class="input-grid" style="margin-bottom:12px;">
+        <div class="input-group">
+          <div class="input-label">開始当たり数 <span class="badge-manual">入力</span></div>
+          <input class="input-field is-manual" type="number" inputmode="numeric" placeholder="0" id="in-hit-start" value="0" oninput="recalc();save()">
+        </div>
+        <div class="input-group">
+          <div class="input-label">出玉なし当たり <span class="badge-manual">入力</span></div>
+          <input class="input-field is-manual" type="number" inputmode="numeric" placeholder="0" id="in-hit-nodama" value="0" oninput="recalc();save()">
+        </div>
+      </div>
+      <div class="summary-row">
+        <span class="lbl">今回当たり（出玉あり）</span>
+        <span class="val" style="color:var(--accent)" id="sum-hit-today">0回</span>
+      </div>
+      <div class="summary-row">
+        <span class="lbl">合計当たり数（データ表示）</span>
+        <span class="val"><span class="badge info" id="sum-hit-total">0回</span></span>
+      </div>
+      <div class="summary-row">
+        <span class="lbl">合計当たり出玉</span>
+        <span class="val" style="color:var(--green)" id="sum-hit-balls">0玉</span>
+      </div>
+      <div class="summary-row">
+        <span class="lbl">総増減（実測 − 理論）</span>
+        <span class="val"><span class="badge neu" id="sum-total-delta">—</span></span>
+      </div>
+      <div class="summary-row">
+        <span class="lbl">当たり1回増減</span>
+        <span class="val"><span class="badge neu" id="sum-hit-delta">—</span></span>
+      </div>
+    </div>
+    <div class="section">
+      <div class="section-header"><div class="section-label">当たり記録</div><div class="section-line"></div></div>
+      <div class="hit-list" id="hit-list"></div>
+      <button class="add-hit-btn" id="add-hit-btn">＋ 当たり追加</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== ボーダー ===== -->
+<div class="tab-content" id="tab-border">
+  <div class="section">
+    <div class="section-header"><div class="section-label">持玉比率</div><div class="section-line"></div></div>
+    <div class="ratio-label-row">
+      <div class="ratio-title">BALL RATIO</div>
+      <div class="ratio-val-display" id="ratio-display">100%</div>
+    </div>
+    <input type="range" class="ratio-slider" min="0" max="100" value="100" id="ratio-slider" oninput="setRatioVal(this.value)">
+    <div class="ratio-presets">
+      <div class="ratio-preset active" id="rp-100">100%</div>
+      <div class="ratio-preset" id="rp-75">75%</div>
+      <div class="ratio-preset" id="rp-50">50%</div>
+      <div class="ratio-preset" id="rp-25">25%</div>
+      <div class="ratio-preset" id="rp-0">0%</div>
+    </div>
+  </div>
+
+  <div class="kitai-card">
+    <div>
+      <div style="font-size:11px;color:var(--text2);">期待時給（持玉比率反映）</div>
+      <div style="font-size:9px;color:var(--text3);margin-top:2px;" id="border-kitai-sub">持玉比率 100% 時</div>
+    </div>
+    <div style="text-align:right;">
+      <div class="kitai-val" id="border-kitai-val">—</div>
+      <div style="font-size:11px;color:var(--text2);">円/時</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-header"><div class="section-label">ボーダー比較</div><div class="section-line"></div></div>
+    <div class="summary-row">
+      <span class="lbl">ボーダー</span>
+      <span class="val" id="disp-border">—</span>
+    </div>
+    <div class="summary-row">
+      <span class="lbl">実回転率</span>
+      <span class="val" id="disp-border-rot">—</span>
+    </div>
+    <div class="summary-row">
+      <span class="lbl">差</span>
+      <span class="val"><span class="badge neu" id="disp-border-diff">—</span></span>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-header"><div class="section-label">機種スペック</div><div class="section-line"></div></div>
+    <div class="summary-row">
+      <span class="lbl">メーカー</span>
+      <span class="val" id="disp-spec-maker">—</span>
+    </div>
+    <div class="summary-row">
+      <span class="lbl">平均出玉</span>
+      <span class="val" id="disp-spec-heikin">—</span>
+    </div>
+    <div class="summary-row">
+      <span class="lbl">平均連</span>
+      <span class="val" id="disp-spec-heiren">—</span>
+    </div>
+    <div class="summary-row">
+      <span class="lbl">初当たり確率</span>
+      <span class="val" id="disp-hatsua">—</span>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 設定 ===== -->
+<div class="tab-content" id="tab-setting">
+  <div class="section">
+    <div class="section-header"><div class="section-label">セッション設定</div><div class="section-line"></div></div>
+    <div class="setting-row">
+      <div class="input-label" style="display:block;margin-bottom:6px;">日付</div>
+      <input class="input-field" type="date" id="in-date" oninput="save()">
+    </div>
+    <div class="setting-row">
+      <div class="input-label" style="display:block;margin-bottom:6px;">店</div>
+      <select class="input-field" id="in-shop" onchange="onShopChange()">
+        <option value="">選択してください</option>
+      </select>
+    </div>
+    <div class="setting-row">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
+        <div class="input-label" style="margin-bottom:0;">機種</div>
+        <select class="input-field" id="in-maker-filter" onchange="onMakerFilterChange()"
+          style="flex:1;font-size:10px;padding-top:5px;padding-bottom:5px;">
+          <option value="">全メーカー</option>
+        </select>
+      </div>
+      <select class="input-field" id="in-kishu" onchange="onKishuChange()">
+        <option value="">選択してください</option>
+      </select>
+    </div>
+    <div class="setting-row">
+      <div class="input-label" style="display:block;margin-bottom:6px;">換金率<span class="auto-badge">✦ 店マスタより自動取得</span></div>
+      <div class="input-field" style="background:rgba(57,255,110,0.05);border-color:rgba(57,255,110,0.2);color:var(--green);cursor:default;" id="disp-kankin">—</div>
+    </div>
+    <div class="setting-row">
+      <div class="input-label" style="display:block;margin-bottom:6px;">台番号</div>
+      <input class="input-field" type="number" inputmode="numeric" placeholder="例：123" id="in-daiban" oninput="save()">
+    </div>
+    <div class="setting-row">
+      <div class="input-label" style="display:block;margin-bottom:6px;">打ち手</div>
+      <div class="chip-select" id="uchi-chips"></div>
+    </div>
+  </div>
+  <button class="action-btn send" id="send-btn">📤 記録送信</button>
+  <button class="action-btn reset" id="reset-btn">🗑️ データリセット</button>
+  <div class="section" style="margin-top:10px;">
+    <div class="section-header"><div class="section-label">期待時給 カラー設定</div><div class="section-line"></div></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+      <div>
+        <div class="input-label" style="display:block;margin-bottom:4px;color:#c8b400;">🟡 及第点（円以上）</div>
+        <input class="input-field" type="number" inputmode="numeric" id="th-warn" value="1500" oninput="saveThresholds()">
+      </div>
+      <div>
+        <div class="input-label" style="display:block;margin-bottom:4px;color:#39ff6e;">🟢 合格（円以上）</div>
+        <input class="input-field" type="number" inputmode="numeric" id="th-ok" value="1800" oninput="saveThresholds()">
+      </div>
+      <div>
+        <div class="input-label" style="display:block;margin-bottom:4px;color:#00d4ff;">🔵 良台（円以上）</div>
+        <input class="input-field" type="number" inputmode="numeric" id="th-good" value="2300" oninput="saveThresholds()">
+      </div>
+      <div>
+        <div class="input-label" style="display:block;margin-bottom:4px;color:#ff6bff;">🏆 感動（円以上）</div>
+        <input class="input-field" type="number" inputmode="numeric" id="th-great" value="2800" oninput="saveThresholds()">
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- 確認ダイアログ -->
+<div class="modal-overlay" id="dialogModal">
+  <div class="modal" style="max-height:auto;">
+    <div class="modal-title" id="dialog-title">確認</div>
+    <div style="font-size:13px;color:var(--text2);margin:12px 0 20px;" id="dialog-msg"></div>
+    <div style="display:flex;gap:8px;">
+      <button id="dialog-cancel" style="flex:1;background:var(--surface3);border:1px solid var(--border);color:var(--text2);padding:12px;border-radius:var(--radius-sm);font-family:'Rajdhani',sans-serif;font-weight:700;font-size:13px;cursor:pointer;">キャンセル</button>
+      <button id="dialog-ok" style="flex:1;background:rgba(255,68,102,0.15);border:1px solid rgba(255,68,102,0.4);color:var(--red);padding:12px;border-radius:var(--radius-sm);font-family:'Rajdhani',sans-serif;font-weight:700;font-size:13px;cursor:pointer;">OK</button>
+    </div>
+  </div>
+</div>
+
+<!-- 当たりモーダル -->
+<div class="modal-overlay" id="hitModal">
+  <div class="modal">
+    <button class="modal-close" id="modal-close-btn">✕</button>
+    <div class="modal-title">当たり追加</div>
+    <div class="modal-subtitle" id="modal-subtitle">機種を選択してください</div>
+    <div class="round-input-grid" id="round-input-grid"></div>
+    <div class="auto-calc-row">
+      <div class="auto-calc-label">ラウンドから計算した出玉目安 <span class="badge-auto">AUTO</span></div>
+      <div class="auto-calc-val" id="modal-auto-balls">0玉</div>
+    </div>
+    <div class="input-group" style="margin-bottom:14px;">
+      <div class="input-label">合計出玉（実際の値で上書き可） <span class="badge-manual">入力</span></div>
+      <input class="input-field is-manual" type="number" inputmode="numeric" placeholder="0" id="modal-balls">
+    </div>
+    <button class="modal-confirm-btn" id="modal-confirm-btn">確定</button>
+  </div>
+</div>
+
+<nav class="bottom-nav">
+  <div class="nav-item active" id="nav-main"><div class="nav-icon">🎰</div><div class="nav-label">メイン</div></div>
+  <div class="nav-item" id="nav-hit"><div class="nav-icon">🎯</div><div class="nav-label">当たり</div></div>
+  <div class="nav-item" id="nav-border"><div class="nav-icon">📊</div><div class="nav-label">ボーダー</div></div>
+  <div class="nav-item" id="nav-setting"><div class="nav-icon">⚙️</div><div class="nav-label">設定</div></div>
+</nav>
+
+<script>
+'use strict';
+
+// =============================================
+// GAS設定
+// =============================================
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbzFtMJ354oeVAeNVTGLckNVXX9I1URLJTrlMTafDNO6UPOf7yo3bnaac_yPKYV8hVv8/exec';
+
+// =============================================
+// マスタデータ（GASから取得）
+// =============================================
+let SHOPS = [];
+let KISHU = [];
+let UCHI  = ['自分']; // デフォルト、GASから上書き
+
+// =============================================
+// 状態
+// =============================================
+const S = {
+  shop: null,
+  kishu: null,
+  ratio: 100,
+  hits: [],
+};
+
+// =============================================
+// 初期化
+// =============================================
+window.addEventListener('DOMContentLoaded', async () => {
+  const t = new Date();
+  document.getElementById('in-date').value =
+    t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')+'-'+String(t.getDate()).padStart(2,'0');
+
+  // キャッシュがあれば即座に表示
+  const cache = localStorage.getItem('masters_cache');
+  if (cache) {
+    try {
+      const d = JSON.parse(cache);
+      SHOPS = d.shops  || [];
+      KISHU = d.kishus || [];
+      UCHI  = d.uchis  || [{name:'自分',type:'owner'}];
+      buildShops();
+      buildKishuSelect();
+      buildUchiChips();
+      loadThresholds();
+      bindEvents();
+      loadData();
+      updateGuard();
+      recalc();
+    } catch(e) {}
+    // バックグラウンドで最新取得（店・機種の選択状態を復元）
+    loadMasters().then(() => {
+      const savedShop  = S.shop  ? S.shop.name  : null;
+      const savedKishu = S.kishu ? S.kishu.name : null;
+      buildShops();
+      buildKishuSelect();
+      buildUchiChips();
+      // 選択状態を復元
+      if (savedShop) {
+        const s = SHOPS.find(x => x.name === savedShop);
+        if (s) { S.shop = s; document.getElementById('in-shop').value = savedShop; }
+      }
+      if (savedKishu) {
+        const k = KISHU.find(x => x.name === savedKishu);
+        if (k) { S.kishu = k; document.getElementById('in-kishu').value = savedKishu; }
+      }
+    });
+  } else {
+    // キャッシュなし→通常ロード
+    showLoading(true);
+    await loadMasters();
+    showLoading(false);
+    buildShops();
+    buildKishuSelect();
+    buildUchiChips();
+    loadThresholds();
+    bindEvents();
+    loadData();
+    updateGuard();
+    recalc();
+  }
+});
+
+// =============================================
+// スケルトンUI表示（キャッシュなし初回ロード時）
+// =============================================
+function showLoading(show) {
+  let el = document.getElementById('skeleton-overlay');
+  if (show) {
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'skeleton-overlay';
+      // メインタブのKPIカード・セクションをスケルトンで模倣
+      el.innerHTML = `
+        <div style="padding:14px 14px 0;">
+          <!-- 収支+時給スケルトン -->
+          <div class="sk-kpi-grid" style="margin-bottom:10px;">
+            <div class="sk-kpi-card" style="grid-column:1/-1;">
+              <div class="sk-row">
+                <div><div class="skeleton sk-label"></div><div class="skeleton sk-value-wide"></div></div>
+                <div><div class="skeleton sk-label"></div><div class="skeleton sk-value-wide"></div></div>
+              </div>
+            </div>
+            <div class="sk-kpi-card" style="grid-column:1/-1;padding:14px;">
+              <div class="skeleton sk-label"></div>
+              <div class="skeleton" style="height:32px;width:70%;margin-top:6px;"></div>
+            </div>
+            <div class="sk-kpi-card"><div class="skeleton sk-label"></div><div class="skeleton sk-value"></div></div>
+            <div class="sk-kpi-card"><div class="skeleton sk-label"></div><div class="skeleton sk-value"></div></div>
+          </div>
+          <!-- 回転数セクションスケルトン -->
+          <div class="sk-section">
+            <div class="skeleton sk-section-header"></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:12px;">
+              <div><div class="skeleton" style="height:24px;margin-bottom:4px;"></div><div class="skeleton" style="height:10px;width:70%;"></div></div>
+              <div><div class="skeleton" style="height:24px;margin-bottom:4px;"></div><div class="skeleton" style="height:10px;width:70%;"></div></div>
+              <div><div class="skeleton" style="height:24px;margin-bottom:4px;"></div><div class="skeleton" style="height:10px;width:70%;"></div></div>
+            </div>
+            <div class="sk-row"><div class="skeleton sk-input"></div><div class="skeleton sk-input"></div></div>
+          </div>
+          <!-- 収支入力セクションスケルトン -->
+          <div class="sk-section">
+            <div class="skeleton sk-section-header"></div>
+            <div class="sk-row"><div class="skeleton sk-input"></div><div class="skeleton sk-input"></div></div>
+            <div class="sk-row"><div class="skeleton sk-input"></div><div class="skeleton sk-input"></div></div>
+            <div class="skeleton sk-input" style="margin-top:8px;"></div>
+          </div>
+        </div>`;
+      document.getElementById('tab-main').appendChild(el);
+    }
+    el.style.display = 'block';
+    // ガードを非表示にしてスケルトンを見せる
+    document.getElementById('guard-main').style.display = 'none';
+    document.getElementById('main-body').style.display = 'none';
+  } else {
+    if (el) el.style.display = 'none';
+    // ガード表示を通常フローに戻す
+    document.getElementById('guard-main').style.display = '';
+  }
+}
+
+// =============================================
+// GASからマスタ取得
+// =============================================
+async function loadMasters() {
+  try {
+    const res  = await fetch(GAS_URL + '?action=masters', {redirect: 'follow'});
+    const data = await res.json();
+    if (data.success) {
+      SHOPS = data.shops  || [];
+      KISHU = data.kishus || [];
+      UCHI  = data.uchis  || [{name:'自分',type:'owner'}];
+      localStorage.setItem('masters_cache', JSON.stringify({
+        shops: SHOPS, kishus: KISHU, uchis: UCHI
+      }));
+    }
+  } catch(e) {
+    const cache = localStorage.getItem('masters_cache');
+    if (cache) {
+      try {
+        const d = JSON.parse(cache);
+        SHOPS = d.shops  || [];
+        KISHU = d.kishus || [];
+        UCHI  = d.uchis  || [{name:'自分',type:'owner'}];
+      } catch(e2) {}
+    }
+    console.warn('マスタ取得失敗、キャッシュ使用:', e);
+  }
+}
+
+// =============================================
+// イベントバインド（全てここで一括管理）
+// =============================================
+function bindEvents() {
+  // タブ
+  document.getElementById('nav-main').onclick    = () => switchTab('main');
+  document.getElementById('nav-hit').onclick     = () => switchTab('hit');
+  document.getElementById('nav-border').onclick  = () => switchTab('border');
+  document.getElementById('nav-setting').onclick = () => switchTab('setting');
+
+  // ガードタップ→設定へ
+  document.getElementById('guard-main').onclick = () => switchTab('setting');
+  document.getElementById('guard-hit').onclick  = () => switchTab('setting');
+
+  // 打ち手チップはbuildUchiChips()で生成するのでここでは不要
+
+  // 当たり追加ボタン
+  document.getElementById('add-hit-btn').onclick = openModal;
+
+  // モーダル閉じる
+  document.getElementById('modal-close-btn').onclick = closeModal;
+  document.getElementById('hitModal').onclick = e => { if (e.target.id==='hitModal') closeModal(); };
+
+  // モーダル確定
+  document.getElementById('modal-confirm-btn').onclick = confirmHit;
+
+  // 持玉比率プリセット
+  document.getElementById('rp-100').onclick = () => setRatio(100);
+  document.getElementById('rp-75').onclick  = () => setRatio(75);
+  document.getElementById('rp-50').onclick  = () => setRatio(50);
+  document.getElementById('rp-25').onclick  = () => setRatio(25);
+  document.getElementById('rp-0').onclick   = () => setRatio(0);
+
+  // 送信・リセット・更新
+  document.getElementById('send-btn').onclick  = doSend;
+  document.getElementById('reset-btn').onclick = doReset;
+  document.getElementById('refreshBtn').onclick = () => location.reload();
+}
+
+// =============================================
+// カスタムダイアログ（confirm/alertの代替）
+// =============================================
+function showDialog(msg, onOk, okLabel, isAlert) {
+  document.getElementById('dialog-msg').textContent = msg;
+  const okBtn = document.getElementById('dialog-ok');
+  const cancelBtn = document.getElementById('dialog-cancel');
+  okBtn.textContent = okLabel || 'OK';
+  cancelBtn.style.display = isAlert ? 'none' : '';
+  document.getElementById('dialogModal').classList.add('show');
+  okBtn.onclick = () => {
+    document.getElementById('dialogModal').classList.remove('show');
+    if (onOk) onOk();
+  };
+  cancelBtn.onclick = () => {
+    document.getElementById('dialogModal').classList.remove('show');
+  };
+}
+function showAlert(msg) { showDialog(msg, null, 'OK', true); }
+function showConfirm(msg, onOk) { showDialog(msg, onOk, '実行', false); }
+function switchTab(name) {
+  ['main','hit','border','setting'].forEach(t => {
+    document.getElementById('tab-'+t).classList.toggle('active', t===name);
+    document.getElementById('nav-'+t).classList.toggle('active', t===name);
+  });
+}
+
+// =============================================
+// ガード表示
+// =============================================
+function updateGuard() {
+  const ready = !!(S.shop && S.kishu);
+  document.getElementById('guard-main').classList.toggle('show', !ready);
+  document.getElementById('main-body').style.display = ready ? 'block' : 'none';
+  document.getElementById('guard-hit').classList.toggle('show', !ready);
+  document.getElementById('hit-body').style.display = ready ? 'block' : 'none';
+}
+
+// =============================================
+// 店プルダウン
+// =============================================
+function buildShops() {
+  const sel = document.getElementById('in-shop');
+  sel.innerHTML = '<option value="">選択してください</option>';
+  SHOPS.forEach(s => {
+    const o = document.createElement('option');
+    o.value = s.name;
+    o.textContent = s.name;
+    sel.appendChild(o);
+  });
+}
+function onShopChange() {
+  const name = document.getElementById('in-shop').value;
+  S.shop = SHOPS.find(s=>s.name===name) || null;
+  document.getElementById('disp-kankin').textContent = S.shop ? S.shop.kokan+'玉交換' : '—';
+  updateHeader();
+  updateGuard();
+  recalc();
+  save();
+}
+
+// =============================================
+// 機種セレクト（メーカーフィルタ付き）
+// =============================================
+function buildKishuSelect() {
+  // ① メーカーフィルタ選択肢を再構築（現在値を保持）
+  const makerSel = document.getElementById('in-maker-filter');
+  if (makerSel) {
+    const makers = [...new Set(KISHU.map(k => k.maker || '').filter(Boolean))].sort();
+    const prevMaker = makerSel.value;
+    makerSel.innerHTML = '<option value="">全メーカー</option>' +
+      makers.map(m => `<option value="${m}"${m === prevMaker ? ' selected' : ''}>${m}</option>`).join('');
+  }
+
+  // ② 機種リスト（メーカーフィルタ適用）を再構築（現在値を保持）
+  const makerFilter = makerSel ? makerSel.value : '';
+  const filtered    = makerFilter ? KISHU.filter(k => k.maker === makerFilter) : KISHU;
+  const sel         = document.getElementById('in-kishu');
+  const prevKishu   = sel.value;
+  sel.innerHTML = '<option value="">選択してください</option>';
+  filtered.forEach(k => {
+    const o = document.createElement('option');
+    o.value = k.name;
+    o.textContent = k.name;
+    sel.appendChild(o);
+  });
+  // フィルタ後もリストに存在するなら選択を復元
+  if (prevKishu && filtered.some(k => k.name === prevKishu)) sel.value = prevKishu;
+}
+
+function onMakerFilterChange() {
+  // メーカー切替 → 機種リスト再構築 + 機種選択リセット
+  const makerSel   = document.getElementById('in-maker-filter');
+  const makerFilter = makerSel ? makerSel.value : '';
+  const filtered    = makerFilter ? KISHU.filter(k => k.maker === makerFilter) : KISHU;
+  const sel         = document.getElementById('in-kishu');
+  sel.innerHTML = '<option value="">選択してください</option>';
+  filtered.forEach(k => {
+    const o = document.createElement('option');
+    o.value = k.name;
+    o.textContent = k.name;
+    sel.appendChild(o);
+  });
+  // 機種選択をリセット
+  S.kishu = null;
+  sel.value = '';
+  updateHeader();
+  updateGuard();
+  updateTrialMode();
+  recalc();
+}
+
+function onKishuChange() {
+  const name = document.getElementById('in-kishu').value;
+  S.kishu = KISHU.find(k=>k.name===name) || null;
+  updateHeader();
+  updateGuard();
+  updateTrialMode();
+  recalc();
+  save();
+}
+
+// =============================================
+// 試しうちモード：回転数・時間入力欄を非表示
+// =============================================
+function updateTrialMode() {
+  const isTrial = S.kishu && S.kishu.name === '試しうち';
+  const rotEl   = document.getElementById('section-rotation');
+  const tsEl    = document.getElementById('time-start-group');
+  const teEl    = document.getElementById('time-end-group');
+  if (rotEl) rotEl.style.display = isTrial ? 'none' : '';
+  if (tsEl)  tsEl.style.display  = isTrial ? 'none' : '';
+  if (teEl)  teEl.style.display  = isTrial ? 'none' : '';
+}
+
+// =============================================
+// 打ち手チップ生成
+// =============================================
+function buildUchiChips() {
+  const wrap = document.getElementById('uchi-chips');
+  wrap.innerHTML = '';
+  UCHI.forEach((u, i) => {
+    const name = typeof u === 'object' ? u.name : u;
+    const c = document.createElement('div');
+    c.className = 'chip' + (i === 0 ? ' selected' : '');
+    c.textContent = name;
+    c.onclick = () => {
+      wrap.querySelectorAll('.chip').forEach(x=>x.classList.remove('selected'));
+      c.classList.add('selected');
+      save();
+      recalc();
+    };
+    wrap.appendChild(c);
+  });
+}
+
+function updateHeader() {
+  document.getElementById('header-info').textContent =
+    (S.shop ? S.shop.name : '—') + ' / ' + (S.kishu ? S.kishu.name : '—');
+}
+
+// =============================================
+// モーダル
+// =============================================
+function openModal() {
+  if (!S.kishu) { showAlert('設定タブで機種を選択してください'); return; }
+  buildRoundInputs();
+  document.getElementById('hitModal').classList.add('show');
+}
+function closeModal() {
+  document.getElementById('hitModal').classList.remove('show');
+}
+function buildRoundInputs() {
+  const grid = document.getElementById('round-input-grid');
+  grid.innerHTML = '';
+  document.getElementById('modal-subtitle').textContent = S.kishu.name + ' — ラウンド別回数を入力';
+  document.getElementById('modal-balls').value = '';
+  S.kishu.rounds.forEach(r => {
+    const item = document.createElement('div');
+    item.className = 'round-input-item';
+    item.dataset.balls = r.balls;
+    const minusBtn = document.createElement('button');
+    minusBtn.className = 'counter-btn';
+    minusBtn.textContent = '−';
+    const valEl = document.createElement('div');
+    valEl.className = 'counter-val';
+    valEl.textContent = '0';
+    const plusBtn = document.createElement('button');
+    plusBtn.className = 'counter-btn';
+    plusBtn.textContent = '＋';
+    minusBtn.onclick = () => { valEl.textContent = Math.max(0, parseInt(valEl.textContent)-1); updateModalBalls(); };
+    plusBtn.onclick  = () => { valEl.textContent = parseInt(valEl.textContent)+1; updateModalBalls(); };
+    const counter = document.createElement('div');
+    counter.className = 'round-counter';
+    counter.append(minusBtn, valEl, plusBtn);
+    item.innerHTML = `<div class="round-input-name">${r.name}</div><div class="round-input-sub">≒${r.balls.toLocaleString()}玉</div>`;
+    item.appendChild(counter);
+    grid.appendChild(item);
+  });
+  updateModalBalls();
+}
+function updateModalBalls() {
+  let total = 0;
+  document.querySelectorAll('#round-input-grid .round-input-item').forEach(item => {
+    const cnt = parseInt(item.querySelector('.counter-val').textContent) || 0;
+    total += cnt * (parseInt(item.dataset.balls) || 0);
+  });
+  document.getElementById('modal-auto-balls').textContent = total.toLocaleString() + '玉';
+  if (total > 0) document.getElementById('modal-balls').value = total;
+}
+function confirmHit() {
+  const balls = parseInt(document.getElementById('modal-balls').value) || 0;
+  if (balls === 0) { showAlert('出玉を入力してください'); return; }
+  const rounds = [];
+  document.querySelectorAll('#round-input-grid .round-input-item').forEach(item => {
+    const cnt = parseInt(item.querySelector('.counter-val').textContent) || 0;
+    if (cnt > 0) rounds.push({
+      name: item.querySelector('.round-input-name').textContent,
+      count: cnt,
+      balls: parseInt(item.dataset.balls) || 0,
+    });
+  });
+  if (rounds.length === 0) { showAlert('ラウンドを選択してください'); return; }
+  S.hits.push({ balls, rounds });
+  renderHitList();
+  closeModal();
+  recalc();
+  save();
+}
+
+// =============================================
+// 当たりリスト描画
+// =============================================
+function renderHitList() {
+  const list = document.getElementById('hit-list');
+  list.innerHTML = '';
+  S.hits.forEach((hit, i) => {
+    const totalCount = hit.rounds.reduce((s,r)=>s+r.count, 0);
+    const label = totalCount > 1 ? '連荘 '+totalCount+'回' : '単発';
+    const chips = hit.rounds.map(r =>
+      '<div class="round-chip">'+r.name+' ×'+r.count+'</div>'
+    ).join('');
+
+    const row = document.createElement('div');
+    row.className = 'hit-row';
+
+    const top = document.createElement('div');
+    top.className = 'hit-row-top';
+
+    const numEl = document.createElement('div');
+    numEl.className = 'hit-num';
+    numEl.textContent = '#'+(i+1);
+
+    const typeEl = document.createElement('div');
+    typeEl.className = 'hit-type-badge';
+    typeEl.textContent = label;
+
+    const ballsEl = document.createElement('div');
+    ballsEl.className = 'hit-total';
+    ballsEl.textContent = hit.balls.toLocaleString()+'玉';
+
+    const delBtn = document.createElement('button');
+    delBtn.className = 'hit-del';
+    delBtn.textContent = '削除';
+    (function(idx) {
+      delBtn.onclick = function() {
+        showConfirm('この当たり記録を削除しますか？', () => {
+          S.hits.splice(idx, 1);
+          renderHitList();
+          recalc();
+          save();
+        });
+      };
+    })(i);
+
+    top.append(numEl, typeEl, ballsEl, delBtn);
+
+    const chipsEl = document.createElement('div');
+    chipsEl.className = 'round-chips';
+    chipsEl.innerHTML = chips;
+
+    row.append(top, chipsEl);
+    list.appendChild(row);
+  });
+}
+
+// =============================================
+// 持玉比率
+// =============================================
+function setRatioVal(val) {
+  S.ratio = parseFloat(val);
+  document.getElementById('ratio-display').textContent = val+'%';
+  document.getElementById('border-kitai-sub').textContent = '持玉比率 '+val+'% 時';
+  ['100','75','50','25','0'].forEach(v => {
+    document.getElementById('rp-'+v).classList.toggle('active', String(S.ratio)===v);
+  });
+  recalc();
+}
+function setRatio(val) {
+  document.getElementById('ratio-slider').value = val;
+  setRatioVal(val);
+}
+
+// =============================================
+// メイン計算
+// =============================================
+function recalc() {
+  if (!S.shop || !S.kishu) return;
+
+  const invest        = parseFloat(document.getElementById('in-invest').value)      || 0;
+  const investBallRaw = parseFloat(document.getElementById('in-invest-ball').value) || 0;
+  const recoverRaw    = parseFloat(document.getElementById('in-recover').value)     || 0;
+  const watashita     = parseFloat(document.getElementById('in-watashita').value)   || 0; // 渡した玉→回収玉に加算
+  const moratta       = parseFloat(document.getElementById('in-moratta').value)     || 0; // もらった玉→投資玉に加算
+  const investBall    = investBallRaw + moratta; // もらった玉を投資玉に加算
+  const recover       = recoverRaw + watashita;  // 渡した玉を回収玉に加算
+  const rotStart   = parseFloat(document.getElementById('in-rot-start').value)   || 0;
+  const rotEnd     = parseFloat(document.getElementById('in-rot-end').value)     || 0;
+  const tStart     = document.getElementById('in-time-start').value;
+  const tEnd       = document.getElementById('in-time-end').value;
+  const hitStart   = parseInt(document.getElementById('in-hit-start').value)     || 0;
+  const nodama     = parseInt(document.getElementById('in-hit-nodama').value)    || 0;
+  const kokan      = S.shop.kokan;
+  const k          = S.kishu;
+  const ratio      = S.ratio / 100;
+
+  // 稼働時間（時間）
+  let kadoH = null;
+  if (tStart && tEnd) {
+    const [sh,sm] = tStart.split(':').map(Number);
+    const [eh,em] = tEnd.split(':').map(Number);
+    let m = (eh*60+em) - (sh*60+sm);
+    if (m < 0) m += 1440;
+    kadoH = m / 60;
+  }
+
+  // 収支
+  const kosshi = (recover - investBall) * (100/kokan) - invest;
+
+  // 差玉（玉換算）
+  const soToushi = invest/4 + investBall;
+  const sagitama = recover - soToushi;
+
+  // 時給
+  const jikyu = (kadoH && kadoH > 0) ? kosshi / kadoH : null;
+
+  // 回転数
+  const soKaiten     = rotEnd - rotStart;
+  const normalKaiten = soKaiten;
+
+  // 当たり集計
+  let hitBalls = 0, riron = 0, soR = 0, todayHits = 0;
+  S.hits.forEach(h => {
+    hitBalls += h.balls;
+    h.rounds.forEach(r => {
+      riron    += r.count * r.balls;
+      soR      += r.count;           // 当たり回数合計（画面表示・運計算用）
+      todayHits += r.count;          // 同じ値（当たり1回増減の分母）
+    });
+  });
+  // 総Rラウンド数（仕事量計算用：3R×1+10R×2=23R）
+  // rounds内のnameからR数を抽出して積算
+  let soRounds = 0;
+  S.hits.forEach(h => {
+    h.rounds.forEach(r => {
+      const rNum = parseInt(r.name.replace(/[^0-9]/g,'')) || 0;
+      soRounds += rNum * r.count;
+    });
+  });
+
+  // 当たり1回増減（C9）
+  const hitDelta = todayHits > 0 ? (hitBalls - riron) / todayHits : 0;
+
+  // データ表示当たり数
+  const dataHitCount = hitStart + todayHits + nodama;
+
+  // 試しうちモードフラグ
+  const isTrial = k.name === '試しうち';
+
+  // 回転率（試しうちは計算しない）
+  let kaitenRitsu = null;
+  if (!isTrial && normalKaiten > 0) {
+    const totalUsed = soToushi + hitBalls - recover;
+    if (totalUsed > 0) kaitenRitsu = normalKaiten / (totalUsed / 250);
+  }
+
+  // ボーダー（正しい式：初当たり確率 / ((平均出玉+増減) × 平均連 / 250)）
+  const heikin = k.heikin + hitDelta;
+  const border = k.hatsua / (heikin * k.heiren / 250);
+
+  // 期待時給（試しうちはスキップ）
+  // 二重課税防止：持ち玉比率は控除（37%）のみで反映するため、
+  // 期待時給の計算・判定は常に持ち玉100%ベース（tama=kankin固定）で行う
+  let kitaiJikyu = null;
+  if (!isTrial && kaitenRitsu) {
+    const kankin = 100 / kokan;
+    const zenki  = heikin * k.jikan / k.total * kankin;
+    const koki   = 250 * k.jikan / kaitenRitsu * kankin;  // 持ち玉100%固定（ratio=1 → tama=kankin）
+    kitaiJikyu = zenki - koki;
+  }
+
+  // 仕事量（試しうちはスキップ、total1R=0の場合は計算不能→null表示）
+  let shigoto = null;
+  if (!isTrial) {
+    if (todayHits === 0) {
+      // パターン1：当たりなし
+      if (normalKaiten > 0) shigoto = (normalKaiten / border * 250 * (100/kokan)) + kosshi;
+    } else if (k.total1R > 0 && soRounds > 0) {
+      // パターン2：当たりあり（total1R未設定なら計算しない）
+      const rironR    = normalKaiten / k.total1R;
+      const jitsu1R   = hitBalls / soRounds;
+      shigoto = kosshi - (soRounds - rironR) * jitsu1R * (100/kokan);
+    }
+  }
+  const shigotoJikyu = (shigoto !== null && kadoH && kadoH > 0) ? shigoto / kadoH : null;
+
+  // 運(%)（試しうちはスキップ）
+  const un = (!isTrial && soRounds > 0 && normalKaiten > 0 && k.total1R > 0)
+    ? (soRounds / (normalKaiten / k.total1R)) * 100
+    : null;
+
+  // =====================
+  // 表示
+  // =====================
+  const cc = v => v >= 0 ? 'pos' : 'neg';
+
+  // 収支＋時給カード
+  const profitClass = cc(kosshi);
+  document.getElementById('card-kosshi').className = 'kpi-card '+profitClass;
+  el('kpi-kosshi', fmt(kosshi), 'kpi-value '+profitClass);
+  el('kpi-sagitama', '差玉 '+fmtN(Math.round(sagitama)));
+  if (jikyu !== null) {
+    const jikyuClass = cc(jikyu);
+    el('kpi-jikyu', fmt(jikyu), 'kpi-value '+jikyuClass);
+  } else {
+    el('kpi-jikyu', '—', 'kpi-value');
+  }
+  el('kpi-kado', '稼働 '+(kadoH ? kadoH.toFixed(1)+'h' : '—'));
+
+  // 期待時給
+  if (kitaiJikyu !== null) {
+    const kc = kitaiColor(kitaiJikyu);
+    const kitaiEl = document.getElementById('kpi-kitai');
+    kitaiEl.textContent = fmt(kitaiJikyu);
+    kitaiEl.className = 'kpi-value';
+    kitaiEl.style.color = kc.color;
+    // 台評価ラベルのみ表示（持玉%小表示は削除→新設の右パネルに移動）
+    document.getElementById('kpi-kitai-sub').textContent = kc.label;
+    document.getElementById('border-kitai-val').textContent = fmt(kitaiJikyu);
+    document.getElementById('border-kitai-val').style.color = kc.color;
+  } else {
+    const kitaiEl = document.getElementById('kpi-kitai');
+    kitaiEl.textContent = '—';
+    kitaiEl.className = 'kpi-value info';
+    kitaiEl.style.color = '';
+    document.getElementById('kpi-kitai-sub').textContent = '—';
+    el('border-kitai-val', '—');
+  }
+
+  // 仕事量
+  if (shigoto !== null) {
+    const sc = cc(shigoto);
+    document.getElementById('card-shigoto').className = 'kpi-card '+sc;
+    el('kpi-shigoto', fmt(shigoto), 'kpi-value '+sc);
+    el('kpi-shigoto-sub', '時給 '+(shigotoJikyu !== null ? fmt(shigotoJikyu) : '—'));
+  } else {
+    document.getElementById('card-shigoto').className = 'kpi-card';
+    el('kpi-shigoto', '—', 'kpi-value');
+  }
+
+  // 運
+  if (un !== null) {
+    const uc = un >= 100 ? 'pos' : un >= 70 ? 'warn' : 'neg';
+    document.getElementById('card-un').className = 'kpi-card '+uc;
+    el('kpi-un', Math.round(un)+'%', 'kpi-value '+uc);
+  } else {
+    document.getElementById('card-un').className = 'kpi-card';
+    el('kpi-un', '—', 'kpi-value');
+  }
+
+  // 回転数
+  setText('disp-total-rot',  soKaiten > 0 ? fmtN(soKaiten) : '—');
+  setText('disp-normal-rot', normalKaiten > 0 ? fmtN(normalKaiten) : '—');
+  setText('disp-rot-rate',   kaitenRitsu ? kaitenRitsu.toFixed(1) : '—');
+
+  // 当たりサマリー
+  setText('sum-hit-today',  todayHits+'回');
+  setText('sum-hit-total',  dataHitCount+'回');
+  setText('sum-hit-balls',  fmtN(hitBalls)+'玉');
+  setBadge('sum-total-delta', todayHits > 0 ? fmtDelta(hitBalls - riron)+'玉' : '—', hitBalls - riron);
+  setBadge('sum-hit-delta',  todayHits > 0 ? fmtDelta(Math.round(hitDelta))+'玉' : '—', hitDelta);
+
+  // ボーダータブ
+  setText('disp-border',     border ? border.toFixed(2)+' 回/千円' : '—');
+  setText('disp-border-rot', kaitenRitsu ? kaitenRitsu.toFixed(1)+' 回/千円' : '—');
+  if (border && kaitenRitsu) {
+    const diff = kaitenRitsu - border;
+    setBadge('disp-border-diff', fmtDelta(parseFloat(diff.toFixed(2))), diff);
+  } else {
+    const el2 = document.getElementById('disp-border-diff');
+    el2.textContent = '—'; el2.className = 'badge neu';
+  }
+  // 累積差玉・報酬・持玉比率・累計平均期待時給（代打ちのみ）
+  const uchiEl  = document.querySelector('#uchi-chips .chip.selected');
+  const uchi    = uchiEl ? uchiEl.textContent : '自分';
+  const date    = document.getElementById('in-date').value;
+  const ruikeiCard = document.getElementById('card-ruikei');
+  if (uchi !== '自分') {
+    ruikeiCard.style.display = '';
+    const prev = getRuikeiData(uchi, date);
+
+    // ① 累計平均期待時給（仕事量加重平均：AppBと統一）
+    // kitaiJikyu・shigoto両方有効な場合のみ加重、片方nullの場合は加重しない
+    const curShigotoAbs = (kitaiJikyu !== null && shigoto !== null) ? Math.abs(shigoto) : 0;
+    const curKitaiSW    = curShigotoAbs > 0 ? kitaiJikyu * curShigotoAbs : 0;
+    const totalShigoto  = (prev.shigotoTotal || 0) + curShigotoAbs;
+    const avgKitai      = totalShigoto > 0
+      ? ((prev.kitaiShigotoW || 0) + curKitaiSW) / totalShigoto
+      : (kitaiJikyu || 0);
+    const avgKc         = kitaiColor(avgKitai);
+
+    // ② 持玉比率（現在台：当セッションのみ）
+    // 持玉使用 = 当たり出玉のうち持ち帰らず打ち続けた分（≥0）
+    const mochiUsed     = Math.max(0, hitBalls - recover); // recoverはwatashita込み
+    const curMochiAll   = investBall + mochiUsed;          // 貯玉(moratta込み)＋持玉使用
+    const curTotalBalls = invest / (100 / kokan) + curMochiAll; // 総投資玉（kokan対応）
+    const curMochiPct   = curTotalBalls > 0 ? Math.round(curMochiAll / curTotalBalls * 100) : null;
+
+    // ③ 持玉比率（累計：当日全台の自然加重平均）
+    const cumChoTama  = prev.choTama + investBall + mochiUsed; // 貯玉(moratta込み)＋持玉使用を累積
+    const cumGenBalls = prev.genkinBalls + invest / (100 / kokan); // kokan対応
+    const cumTotal    = cumChoTama + cumGenBalls;
+    const cumMochiPct = cumTotal > 0 ? Math.round(cumChoTama / cumTotal * 100) : null;
+
+    // ④ 持玉比率ブロック表示（代打ち時のみ）
+    const mochiBlock = document.getElementById('kpi-mochi-block');
+    mochiBlock.style.display = '';
+    const kc2        = kitaiJikyu !== null ? kitaiColor(kitaiJikyu) : {color:'var(--text2)', label:''};
+    const mochiValEl = document.getElementById('kpi-mochi-val');
+    mochiValEl.textContent = curMochiPct !== null ? curMochiPct + '%' : '—%';
+    mochiValEl.style.color  = kc2.color;
+    document.getElementById('kpi-mochi-ruikei').textContent =
+      cumMochiPct !== null ? '累計: ' + cumMochiPct + '%' : '累計: —%';
+
+    // ⑤ 累計平均期待時給ブロック表示（代打ち時のみ）
+    const avgBlock = document.getElementById('kpi-kitai-avg-block');
+    avgBlock.style.display = '';
+    const avgValEl = document.getElementById('kpi-kitai-avg-val');
+    avgValEl.textContent = Math.round(avgKitai).toLocaleString('ja-JP') + '円';
+    avgValEl.style.color  = avgKc.color;
+    document.getElementById('kpi-kitai-avg-label').textContent = avgKc.label.split(' ')[0]; // 絵文字のみ
+
+    // ⑥ 累積差玉・報酬
+    const ruikeiSagi   = prev.sagitama + Math.round(sagitama);
+    const ruikeiGenkin = prev.genkinInvest + invest;
+    const hoshu        = calcHoshuLocal(ruikeiSagi, avgKitai, ruikeiGenkin, uchi);
+    const startLine    = (avgKitai >= 1800) ? 5000 : 10000;
+    const koujo        = Math.round(ruikeiGenkin * 0.107 * 3.5);
+    const sagiClass    = ruikeiSagi >= 0 ? 'pos' : 'neg';
+    el('kpi-ruikei-sagitama', fmtN(Math.round(ruikeiSagi))+'玉', 'kpi-value '+sagiClass);
+    document.getElementById('kpi-ruikei-sub').textContent = '前台引継: '+fmtN(Math.round(prev.sagitama))+'玉';
+    el('kpi-hoshu', '¥'+fmtN(hoshu), 'kpi-value pos');
+    const startLabel = startLine === 5000 ? '5千スタート' : '1万スタート';
+    document.getElementById('kpi-hoshu-sub').textContent =
+      ruikeiSagi >= startLine
+        ? '✅ '+startLabel + (koujo > 0 ? ' | 控除¥'+fmtN(koujo) : '')
+        : startLabel+' | 残り '+fmtN(startLine - Math.max(0, ruikeiSagi))+'玉';
+  } else {
+    ruikeiCard.style.display = 'none';
+    document.getElementById('kpi-mochi-block').style.display    = 'none';
+    document.getElementById('kpi-kitai-avg-block').style.display = 'none';
+  }
+
+  setText('disp-hatsua',     '1/'+k.hatsua.toFixed(1));
+  setText('disp-spec-heikin', fmtN(Math.round(heikin))+'玉');
+  setText('disp-spec-heiren', k.heiren.toFixed(2)+'連');
+  setText('disp-spec-total',  k.total.toFixed(2)+'円/千円');
+  setText('disp-spec-maker',  k.maker || '—');
+}
+
+// =============================================
+// 送信
+// =============================================
+async function doSend() {
+  // バリデーション
+  if (!S.shop)  { showAlert('店を選択してください'); return; }
+  if (!S.kishu) { showAlert('機種を選択してください'); return; }
+
+  const date    = document.getElementById('in-date').value;
+  if (!date)    { showAlert('日付を入力してください'); return; }
+
+  // 計算値を収集
+  const invest        = parseFloat(document.getElementById('in-invest').value)      || 0;
+  const investBallRaw = parseFloat(document.getElementById('in-invest-ball').value) || 0;
+  const recoverRaw    = parseFloat(document.getElementById('in-recover').value)     || 0;
+  const watashita     = parseFloat(document.getElementById('in-watashita').value)   || 0; // 渡した玉
+  const moratta       = parseFloat(document.getElementById('in-moratta').value)     || 0; // もらった玉
+  const investBall    = investBallRaw + moratta; // もらった玉を投資玉に加算
+  const recover       = recoverRaw + watashita;  // 渡した玉を回収玉に加算
+  const rotStart      = parseFloat(document.getElementById('in-rot-start').value)   || 0;
+  const rotEnd     = parseFloat(document.getElementById('in-rot-end').value)     || 0;
+  const tStart     = document.getElementById('in-time-start').value;
+  const tEnd       = document.getElementById('in-time-end').value;
+  const daiban     = document.getElementById('in-daiban').value || '';
+  const kokan      = S.shop.kokan;
+  const k          = S.kishu;
+  const ratio      = S.ratio / 100;
+  const isTrial    = k.name === '試しうち'; // 試しうちモード
+
+  // 打ち手取得
+  const uchiEl = document.querySelector('#uchi-chips .chip.selected');
+  const uchi   = uchiEl ? uchiEl.textContent : '自分';
+
+  // 稼働時間（試しうちは非表示なので空）
+  let kadoH = null, jikanStr = '';
+  if (!isTrial && tStart && tEnd) {
+    const [sh,sm] = tStart.split(':').map(Number);
+    const [eh,em] = tEnd.split(':').map(Number);
+    let m = (eh*60+em) - (sh*60+sm);
+    if (m < 0) m += 1440;
+    kadoH = m / 60;
+    const hh = Math.floor(kadoH);
+    const mm = Math.round((kadoH - hh) * 60);
+    jikanStr = hh + ':' + String(mm).padStart(2,'0');
+  }
+
+  // 計算
+  const kosshi    = (recover - investBall) * (100/kokan) - invest;
+  const soToushi  = invest/4 + investBall;
+  const sagitama  = recover - soToushi;
+  const soKaiten  = rotEnd - rotStart;
+
+  let hitBalls = 0, riron = 0, soRounds = 0, todayHits = 0;
+  S.hits.forEach(h => {
+    hitBalls += h.balls;
+    h.rounds.forEach(r => {
+      riron     += r.count * r.balls;
+      todayHits += r.count;
+      const rNum = parseInt(r.name.replace(/[^0-9]/g,'')) || 0;
+      soRounds  += rNum * r.count;
+    });
+  });
+
+  const hitDelta    = todayHits > 0 ? (hitBalls - riron) / todayHits : 0;
+  const heikin      = k.heikin + hitDelta;
+  const border      = k.hatsua / (heikin * k.heiren / 250);
+
+  // 試しうちはkaitenRitsu/kitaiJikyu/shigoto/unをスキップ
+  let kaitenRitsu = null;
+  if (!isTrial && soKaiten > 0) {
+    const totalUsed = soToushi + hitBalls - recover;
+    if (totalUsed > 0) kaitenRitsu = soKaiten / (totalUsed / 250);
+  }
+
+  let kitaiJikyu = null;
+  if (!isTrial && kaitenRitsu) {
+    const kankin = 100 / kokan;
+    const zenki  = heikin * k.jikan / k.total * kankin;
+    const koki   = 250 * k.jikan / kaitenRitsu * kankin;  // 持ち玉100%固定（二重課税防止）
+    kitaiJikyu   = zenki - koki;
+  }
+
+  let shigoto = null;
+  if (!isTrial) {
+    if (todayHits === 0) {
+      if (soKaiten > 0) shigoto = (soKaiten / border * 250 * (100/kokan)) + kosshi;
+    } else if (k.total1R > 0 && soRounds > 0) {
+      const rironR  = soKaiten / k.total1R;
+      const jitsu1R = hitBalls / soRounds;
+      shigoto       = kosshi - (soRounds - rironR) * jitsu1R * (100/kokan);
+    }
+  }
+  const shigotoJikyu = (shigoto !== null && kadoH && kadoH > 0) ? shigoto / kadoH : null;
+
+  const un = (!isTrial && soRounds > 0 && soKaiten > 0 && k.total1R > 0)
+    ? (soRounds / (soKaiten / k.total1R)) * 100 : null;
+
+  // 報酬計算（累積差玉ベース＋持ち玉控除）
+  const prev       = getRuikeiData(uchi, date);
+  const ruikeiSagi = prev.sagitama + Math.round(sagitama);
+  const ruikeiGenkin = prev.genkinInvest + invest;
+  // 仕事量加重平均期待時給（kitaiJikyu・shigoto両方有効な場合のみ加重、AppBと統一）
+  const curShigotoAbs2 = (kitaiJikyu !== null && shigoto !== null) ? Math.abs(shigoto) : 0;
+  const curKitaiSW2    = curShigotoAbs2 > 0 ? kitaiJikyu * curShigotoAbs2 : 0;
+  const totalShigoto2  = (prev.shigotoTotal || 0) + curShigotoAbs2;
+  const avgKitai2      = totalShigoto2 > 0
+    ? ((prev.kitaiShigotoW || 0) + curKitaiSW2) / totalShigoto2
+    : (kitaiJikyu || 0);
+  const hoshu      = uchi !== '自分' ? calcHoshuLocal(ruikeiSagi, avgKitai2, ruikeiGenkin, uchi) : 0;
+  const koujoAmt   = Math.round(invest * 0.107 * 3.5);
+  // 持ち玉比率（V列記録用）：当セッションの持玉÷総投資玉
+  // investBall = 貯玉(moratta込み)、mochiTama = 当たり出玉のうち持ち帰らなかった分
+  const mochiTama      = Math.max(0, hitBalls - recover); // recoverはwatashita込み
+  const mochiTotal     = investBall + mochiTama;          // investBallはmoratta込み
+  const soToushiTama   = invest / (100 / kokan) + mochiTotal;
+  const mochiRatioSend = soToushiTama > 0 ? parseFloat((mochiTotal / soToushiTama).toFixed(4)) : 1;
+
+  // 送信確認
+  const confirmMsg = isTrial
+    ? `【送信確認】（試しうち）\n日付：${date}\n店：${S.shop.name}　台番号：${daiban || '未入力'}\n打ち手：${uchi}\n\n収支：${fmt(kosshi)}円\n差玉：${fmtN(Math.round(sagitama))}玉\n\n送信しますか？`
+    : `【送信確認】\n日付：${date}\n店：${S.shop.name}　台番号：${daiban || '未入力'}\n機種：${S.kishu.name}\n打ち手：${uchi}\n\n収支：${fmt(kosshi)}円\n稼働：${jikanStr || '—'}\n仕事量：${shigoto !== null ? fmt(Math.round(shigoto))+'円' : '—'}\n${uchi !== '自分' ? '報酬：¥'+fmtN(hoshu)+(koujoAmt > 0 ? '（控除¥'+fmtN(koujoAmt)+'）' : '') : ''}\n\n送信しますか？`;
+  showConfirm(
+    confirmMsg,
+    async () => {
+      document.getElementById('send-btn').disabled = true;
+      document.getElementById('send-btn').textContent = '送信中...';
+      try {
+        const payload = {
+          action: 'submit',
+          date:        date,
+          shop:        S.shop.name,
+          kishu:       S.kishu.name,
+          daiban:      daiban,
+          uchi:        uchi,
+          kosshi:      Math.round(kosshi),
+          jikan:       jikanStr,
+          kitaiJikyu:  kitaiJikyu !== null ? Math.round(kitaiJikyu) : '',
+          shigoto:     shigoto    !== null ? Math.round(shigoto)    : '',
+          shigotoJikyu:shigotoJikyu !== null ? Math.round(shigotoJikyu) : '',
+          soKaiten:    soKaiten,
+          kaitenRitsu: kaitenRitsu !== null ? parseFloat(kaitenRitsu.toFixed(2)) : '',
+          border:      parseFloat(border.toFixed(2)),
+          un:          un !== null ? Math.round(un) : '',
+          sagitama:    Math.round(sagitama),
+          kariHoshu:   hoshu,  // 仮報酬（U列）として送信
+          soRounds:    soRounds || 0,
+          todayHits:   todayHits || 0,
+          hitBalls:    Math.round(hitBalls || 0),
+          jitsu1R:     soRounds > 0 ? parseFloat((hitBalls / soRounds).toFixed(1)) : '',
+          genkinInvest:    Math.round(invest),              // W列：現金投資額(円)
+          mochiRatio:      mochiRatioSend,               // V列：持ち玉比率（0〜1の小数）
+          choTamaInvest:   Math.round(investBallRaw),    // 参考：貯玉投資(発、moratta除く)
+          genkinInvestBalls: Math.round(invest / (100 / kokan)), // 参考：現金投資(発)
+          watashita:       Math.round(watashita),        // 渡した玉(発)
+          moratta:         Math.round(moratta),          // もらった玉(発)
+        };
+        console.log('[doSend] payload:', JSON.stringify(payload, null, 2));
+        console.log('[doSend] 内訳 watashita:', watashita, 'moratta:', moratta,
+          '| investBall(調整後):', investBall, 'recover(調整後):', recover,
+          '| mochiTama:', mochiTama, 'mochiTotal:', mochiTotal,
+          '| soToushiTama:', soToushiTama, '→ mochiRatio:', mochiRatioSend);
+
+        const res = await fetch(GAS_URL, {
+          method: 'POST',
+          redirect: 'follow',
+          headers: {'Content-Type': 'text/plain'},
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          // 累積データを保存（2台目引き継ぎ用）
+          if (uchi !== '自分') {
+            addRuikeiData(uchi, date, {
+              sagitama:      Math.round(sagitama),
+              genkinInvest:  Math.round(invest),
+              choTama:       Math.round(investBall + mochiTama), // 貯玉(moratta込み)＋持玉使用を保存
+              genkinBalls:   Math.round(invest / (100 / kokan)),
+              kitaiShigotoW: curKitaiSW2,    // 仕事量加重平均用
+              shigotoTotal:  curShigotoAbs2, // 仕事量合計
+            });
+          }
+          showAlert('✅ 送信完了！');
+          // 日付・打ち手・店・機種を保持してリロード（引き継ぎ差玉が0になるバグ修正）
+          setTimeout(() => afterSendReload(), 1500);
+        } else {
+          showAlert('❌ 送信失敗：' + (data.error || '不明なエラー'));
+        }
+      } catch(e) {
+        // GASはCORSでレスポンスが取れないが送信自体は成功している
+        if (uchi !== '自分') {
+          addRuikeiData(uchi, date, {
+            sagitama:      Math.round(sagitama),
+            genkinInvest:  Math.round(invest),
+            choTama:       Math.round(investBall + mochiUsed), // 貯玉＋持玉使用を保存
+            genkinBalls:   Math.round(invest / 4),
+            kitaiShigotoW: curKitaiSW2,    // 仕事量加重平均用
+            shigotoTotal:  curShigotoAbs2, // 仕事量合計
+          });
+        }
+        showAlert('✅ 送信完了！');
+        // 日付・打ち手・店・機種を保持してリロード（引き継ぎ差玉が0になるバグ修正）
+        setTimeout(() => afterSendReload(), 1500);
+      } finally {
+        document.getElementById('send-btn').disabled = false;
+        document.getElementById('send-btn').textContent = '📤 記録送信';
+      }
+    }
+  );
+}
+
+// =============================================
+// 報酬計算（単独セッション用：GASで累積管理）
+// =============================================
+function calcHoshu(uchi, sagitama) {
+  if (uchi === '自分') return 0;
+  if (sagitama <= 0) return 0;
+  // 累積差玉はGAS側で管理、ここでは単独計算
+  // ※複数台累積はGASが対応
+  return 0; // GAS側で累積計算して上書き
+}
+// =============================================
+// 累積データ管理（打ち手別・日付別・JSON）
+// =============================================
+const RUIKEI_EMPTY = { sagitama: 0, genkinInvest: 0, kitaiWeight: 0, kadoTotal: 0, choTama: 0, genkinBalls: 0, kitaiShigotoW: 0, shigotoTotal: 0 };
+function getRuikeiData(uchi, date) {
+  if (!uchi || uchi === '自分') return {...RUIKEI_EMPTY};
+  try {
+    const d = JSON.parse(localStorage.getItem('ruikei_v7_' + date + '_' + uchi));
+    return d || {...RUIKEI_EMPTY};
+  } catch { return {...RUIKEI_EMPTY}; }
+}
+function addRuikeiData(uchi, date, data) {
+  if (!uchi || uchi === '自分') return;
+  const key = 'ruikei_v7_' + date + '_' + uchi;
+  const p = getRuikeiData(uchi, date);
+  localStorage.setItem(key, JSON.stringify({
+    sagitama:      p.sagitama      + (data.sagitama      || 0),
+    genkinInvest:  p.genkinInvest  + (data.genkinInvest  || 0),
+    kitaiWeight:   p.kitaiWeight   + (data.kitaiWeight   || 0),  // 旧フィールド（後方互換）
+    kadoTotal:     p.kadoTotal     + (data.kadoTotal     || 0),  // 旧フィールド（後方互換）
+    choTama:       p.choTama       + (data.choTama       || 0),
+    genkinBalls:   p.genkinBalls   + (data.genkinBalls   || 0),
+    kitaiShigotoW: (p.kitaiShigotoW || 0) + (data.kitaiShigotoW || 0), // 仕事量加重平均用
+    shigotoTotal:  (p.shigotoTotal  || 0) + (data.shigotoTotal  || 0), // 仕事量合計
+  }));
+}
+// 後方互換ヘルパー
+function getRuikeiSagitama(uchi, date) { return getRuikeiData(uchi, date).sagitama; }
+function calcHoshuLocal(ruikeiSagitama, avgKitaiJikyu, ruikeiGenkinInvest, uchi) {
+  if (uchi === '自分') return 0;
+  const startLine = (avgKitaiJikyu >= 1800) ? 5000 : 10000;
+  if (ruikeiSagitama < startLine) return 0;
+  const baseHoshu = Math.floor(ruikeiSagitama / 5000) * 5000;
+  const koujo = (ruikeiGenkinInvest || 0) * 0.107 * 3.5;
+  return Math.max(0, Math.round(baseHoshu - koujo));
+}
+
+// =============================================
+// 期待時給しきい値
+// =============================================
+function getThresholds() {
+  return {
+    warn:  parseInt(document.getElementById('th-warn').value)  || 1500,
+    ok:    parseInt(document.getElementById('th-ok').value)    || 2000,
+    good:  parseInt(document.getElementById('th-good').value)  || 2500,
+    great: parseInt(document.getElementById('th-great').value) || 3000,
+  };
+}
+function saveThresholds() {
+  const t = getThresholds();
+  localStorage.setItem('kitai_thresholds', JSON.stringify(t));
+  recalc();
+}
+function loadThresholds() {
+  const raw = localStorage.getItem('kitai_thresholds');
+  if (!raw) return;
+  try {
+    const t = JSON.parse(raw);
+    if (t.warn)  document.getElementById('th-warn').value  = t.warn;
+    if (t.ok)    document.getElementById('th-ok').value    = t.ok;
+    if (t.good)  document.getElementById('th-good').value  = t.good;
+    if (t.great) document.getElementById('th-great').value = t.great;
+  } catch(e) {}
+}
+function kitaiColor(v) {
+  if (v === null) return {color:'var(--text2)', label:'—'};
+  const t = getThresholds();
+  if (v >= t.great) return {color:'#ff6bff', label:'🏆 感動'};   // 派手なマゼンタ
+  if (v >= t.good)  return {color:'#00d4ff', label:'🔵 良台'};   // シアン
+  if (v >= t.ok)    return {color:'#39ff6e', label:'🟢 合格'};   // グリーン
+  if (v >= t.warn)  return {color:'#c8b400', label:'🟡 及第点'}; // 落ち着いた黄
+  return              {color:'var(--red)',   label:'🔴 見送り'};  // レッド
+}
+
+function el(id, text, cls) {
+  const e = document.getElementById(id);
+  if (!e) return;
+  e.textContent = text;
+  if (cls !== undefined) e.className = cls;
+}
+function setText(id, text) {
+  const e = document.getElementById(id); if (e) e.textContent = text;
+}
+function fmtN(n) { return Math.round(n).toLocaleString('ja-JP'); }
+function fmt(n)  { const r = Math.round(n); return (r>=0?'+':'')+r.toLocaleString('ja-JP'); }
+function fmtDelta(n) { return (n>=0?'▲ +':'▼ ')+Math.round(n).toLocaleString('ja-JP'); }
+function setBadge(id, text, val) {
+  const e = document.getElementById(id);
+  if (!e) return;
+  e.textContent = text;
+  e.className = 'badge '+(val>0?'up':val<0?'dn':'neu');
+}
+
+// =============================================
+// 保存・読込
+// =============================================
+function save() {
+  try {
+    const d = {
+      rotStart: document.getElementById('in-rot-start').value,
+      rotEnd:   document.getElementById('in-rot-end').value,
+      tStart:   document.getElementById('in-time-start').value,
+      tEnd:     document.getElementById('in-time-end').value,
+      invest:     document.getElementById('in-invest').value,
+      investB:    document.getElementById('in-invest-ball').value,
+      recover:    document.getElementById('in-recover').value,
+      watashita:  document.getElementById('in-watashita').value,
+      moratta:    document.getElementById('in-moratta').value,
+      hitStart: document.getElementById('in-hit-start').value,
+      nodama:   document.getElementById('in-hit-nodama').value,
+      date:     document.getElementById('in-date').value,
+      daiban:   document.getElementById('in-daiban').value,
+      shop:     S.shop  ? S.shop.name  : null,
+      kishu:    S.kishu ? S.kishu.name : null,
+      uchi:     document.querySelector('#uchi-chips .chip.selected')?.textContent || '自分',
+      hits:     S.hits,
+      ratio:    S.ratio,
+    };
+    localStorage.setItem('pachinkoLog_v5', JSON.stringify(d));
+    const ind = document.getElementById('saveIndicator');
+    ind.classList.add('show');
+    setTimeout(()=>ind.classList.remove('show'), 1200);
+  } catch(e) {}
+}
+
+function loadData() {
+  try {
+    const raw = localStorage.getItem('pachinkoLog_v5');
+    if (!raw) return;
+    const d = JSON.parse(raw);
+    const ids = ['rotStart','rotEnd','tStart','tEnd','invest','investB','recover','watashita','moratta','hitStart','nodama','date','daiban'];
+    const map = {rotStart:'in-rot-start',rotEnd:'in-rot-end',tStart:'in-time-start',tEnd:'in-time-end',
+      invest:'in-invest',investB:'in-invest-ball',recover:'in-recover',
+      watashita:'in-watashita',moratta:'in-moratta',
+      hitStart:'in-hit-start',nodama:'in-hit-nodama',date:'in-date',daiban:'in-daiban'};
+    ids.forEach(k => { if (d[k]) { const e = document.getElementById(map[k]); if(e) e.value = d[k]; } });
+
+    if (d.shop) {
+      const s = SHOPS.find(x=>x.name===d.shop);
+      if (s) {
+        S.shop = s;
+        document.getElementById('in-shop').value = d.shop;
+        document.getElementById('disp-kankin').textContent = s.kokan+'玉交換';
+      }
+    }
+    if (d.kishu) {
+      const k = KISHU.find(x=>x.name===d.kishu);
+      if (k) { S.kishu = k; document.getElementById('in-kishu').value = d.kishu; }
+    }
+    if (d.uchi) {
+      document.querySelectorAll('#uchi-chips .chip').forEach(c => {
+        c.classList.toggle('selected', c.textContent === d.uchi);
+      });
+    }
+    if (d.hits) { S.hits = d.hits; renderHitList(); }
+    if (d.ratio !== undefined) {
+      S.ratio = d.ratio;
+      document.getElementById('ratio-slider').value = d.ratio;
+      setRatioVal(d.ratio);
+    }
+    updateHeader();
+    updateTrialMode(); // 試しうちモード復元
+  } catch(e) {}
+}
+
+// =============================================
+// 送信後リロード（2台目引き継ぎ対応）
+// =============================================
+// 数値入力フィールドだけリセットし、日付・打ち手・店・機種は保持してリロード。
+// これにより2台目でも getRuikeiData(uchi, date) が正しく機能し、
+// 「前台引継」差玉が 0 にならない。
+function afterSendReload() {
+  try {
+    const raw = localStorage.getItem('pachinkoLog_v5');
+    const d   = raw ? JSON.parse(raw) : {};
+    // 数値入力・当たり履歴だけリセット（日付・打ち手・店・機種・持玉比率は保持）
+    ['rotStart','rotEnd','tStart','tEnd',
+     'invest','investB','recover','watashita','moratta',
+     'hitStart','nodama','daiban'].forEach(k => { d[k] = ''; });
+    d.hits = [];
+    localStorage.setItem('pachinkoLog_v5', JSON.stringify(d));
+  } catch(e) {
+    localStorage.removeItem('pachinkoLog_v5');
+  }
+  location.reload();
+}
+
+// =============================================
+// リセット
+// =============================================
+function doReset() {
+  showConfirm('全データをリセットしますか？\nこの操作は取り消せません。', () => {
+    showConfirm('本当にリセットしますか？', () => {
+      localStorage.removeItem('pachinkoLog_v5');
+      S.shop = null; S.kishu = null; S.ratio = 100; S.hits = [];
+      ['in-rot-start','in-rot-end','in-time-start','in-time-end',
+       'in-invest','in-invest-ball','in-recover',
+       'in-watashita','in-moratta',
+       'in-hit-start','in-hit-nodama'].forEach(id => {
+        const e = document.getElementById(id); if(e) e.value='';
+      });
+      document.getElementById('in-shop').value = '';
+      document.getElementById('in-kishu').value = '';
+      document.getElementById('disp-kankin').textContent = '—';
+      document.getElementById('ratio-slider').value = 100;
+      renderHitList();
+      updateHeader();
+      updateGuard();
+      recalc();
+    });
+  });
+}
+</script>
+</body>
+</html>
