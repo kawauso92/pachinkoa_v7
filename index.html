@@ -274,9 +274,6 @@ select.input-field{cursor:pointer;appearance:none;background-image:url("data:ima
             <div class="kpi-sub" id="kpi-hoshu-sub">期待時給で開始ライン判定 + 持玉控除</div>
           </div>
         </div>
-        <div style="margin-top:8px;text-align:right;">
-          <button onclick="resetRuikeiData()" style="font-size:11px;padding:3px 10px;background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--text2);cursor:pointer;">AppB削除後リセット</button>
-        </div>
       </div>
     </div>
 
@@ -457,7 +454,7 @@ select.input-field{cursor:pointer;appearance:none;background-image:url("data:ima
     <div class="section-header"><div class="section-label">セッション設定</div><div class="section-line"></div></div>
     <div class="setting-row">
       <div class="input-label" style="display:block;margin-bottom:6px;">日付</div>
-      <input class="input-field" type="date" id="in-date" oninput="save()">
+      <input class="input-field" type="date" id="in-date" oninput="save(); recalc(); triggerRuikeiSync();">
     </div>
     <div class="setting-row">
       <div class="input-label" style="display:block;margin-bottom:6px;">店</div>
@@ -913,7 +910,8 @@ function buildUchiChips() {
       wrap.querySelectorAll('.chip').forEach(x=>x.classList.remove('selected'));
       c.classList.add('selected');
       save();
-      recalc();
+      recalc();           // 即座にキャッシュ値で表示更新
+      triggerRuikeiSync(); // GASから再集計→AppB削除を反映
     };
     wrap.appendChild(c);
   });
@@ -1594,20 +1592,40 @@ function addRuikeiData(uchi, date, data) {
     shigotoTotal:  (p.shigotoTotal  || 0) + (data.shigotoTotal  || 0), // 仕事量合計
   }));
 }
-function deleteRuikeiData(uchi, date) {
-  if (!uchi || uchi === '自分') return;
-  localStorage.removeItem('ruikei_v7_' + date + '_' + uchi);
+// =============================================
+// GAS同期：日付・打ち手変更時に累計キャッシュを再構築
+// =============================================
+let _ruikeiSyncTimer = null;
+function triggerRuikeiSync() {
+  clearTimeout(_ruikeiSyncTimer);
+  _ruikeiSyncTimer = setTimeout(syncRuikeiFromGAS, 400);
 }
-// AppB削除後に累計キャッシュをクリアするUI用
-function resetRuikeiData() {
+async function syncRuikeiFromGAS() {
   const uchiEl = document.querySelector('#uchi-chips .chip.selected');
   const uchi   = uchiEl ? uchiEl.textContent : '自分';
   const date   = document.getElementById('in-date').value;
   if (!uchi || uchi === '自分' || !date) return;
-  showConfirm(
-    `「${uchi}」${date} の累計データをリセットしますか？\nAppBで記録を削除した後に使用してください。`,
-    () => { deleteRuikeiData(uchi, date); recalc(); }
-  );
+  try {
+    const res  = await fetch(GAS_URL + '?action=records&limit=200', {redirect: 'follow'});
+    const data = await res.json();
+    if (!data.success || !Array.isArray(data.records)) return;
+    // 同日・同打ち手のレコードだけ絞り込んで累計を再計算
+    const recs = data.records.filter(r => r.date === date && r.uchi === uchi);
+    const rebuilt = {...RUIKEI_EMPTY};
+    recs.forEach(r => {
+      rebuilt.sagitama     += (r.sagitama     || 0);
+      rebuilt.genkinInvest += (r.genkinInvest  || 0);
+      const absShigoto      = r.shigoto != null ? Math.abs(r.shigoto) : 0;
+      if (absShigoto > 0 && r.kitaiJikyu != null) {
+        rebuilt.kitaiShigotoW += r.kitaiJikyu * absShigoto;
+        rebuilt.shigotoTotal  += absShigoto;
+      }
+    });
+    localStorage.setItem('ruikei_v7_' + date + '_' + uchi, JSON.stringify(rebuilt));
+  } catch(e) {
+    // GAS取得失敗時は既存キャッシュを維持
+  }
+  recalc();
 }
 // 後方互換ヘルパー
 function getRuikeiSagitama(uchi, date) { return getRuikeiData(uchi, date).sagitama; }
