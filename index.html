@@ -1368,16 +1368,41 @@ function recalc() {
     const el2 = document.getElementById('disp-border-diff');
     el2.textContent = '—'; el2.className = 'badge neu';
   }
-  // 累積差玉・報酬・持玉比率・累計平均期待時給（代打ちのみ）
-  const uchiEl  = document.querySelector('#uchi-chips .chip.selected');
-  const uchi    = uchiEl ? uchiEl.textContent : '自分';
-  const date    = document.getElementById('in-date').value;
+  // 累積差玉・報酬・持玉比率・累計平均期待時給
+  const uchiEl     = document.querySelector('#uchi-chips .chip.selected');
+  const uchi       = uchiEl ? uchiEl.textContent : '自分';
+  const date       = document.getElementById('in-date').value;
+  const isJibun    = (uchi === '自分');
+  const isNoriuchi = (uchi === 'ノリうち');
+  const isDaichi   = !isJibun && !isNoriuchi; // 代打ち（累積管理対象）
   const ruikeiCard = document.getElementById('card-ruikei');
-  if (uchi !== '自分') {
-    ruikeiCard.style.display = '';
-    const prev = getRuikeiData(uchi, date);
 
-    // ① 累計平均期待時給（仕事量加重平均：AppBと統一）
+  // ① 持玉比率（現在台：常時計算・常時表示）
+  // 持玉使用 = 当たり出玉のうち持ち帰らず打ち続けた分（≥0）
+  const mochiUsed     = Math.max(0, hitBalls - recover); // recoverはwatashita込み
+  const curMochiAll   = investBall + mochiUsed;          // 貯玉(moratta込み)＋持玉使用
+  const curTotalBalls = invest / (100 / kokan) + curMochiAll; // 総投資玉（kokan対応）
+  const curMochiPct   = curTotalBalls > 0 ? Math.round(curMochiAll / curTotalBalls * 100) : null;
+
+  // ② 持玉比率（累計：代打ち時のみ意味あり）
+  const prev        = isDaichi ? getRuikeiData(uchi, date) : RUIKEI_EMPTY;
+  const cumChoTama  = prev.choTama + investBall + mochiUsed; // 貯玉(moratta込み)＋持玉使用を累積
+  const cumGenBalls = prev.genkinBalls + invest / (100 / kokan); // kokan対応
+  const cumTotal    = cumChoTama + cumGenBalls;
+  const cumMochiPct = (isDaichi && cumTotal > 0) ? Math.round(cumChoTama / cumTotal * 100) : null;
+
+  // ③ 持玉比率ブロック（常時表示）
+  const mochiBlock = document.getElementById('kpi-mochi-block');
+  mochiBlock.style.display = '';
+  const kc2        = kitaiJikyu !== null ? kitaiColor(kitaiJikyu) : {color:'var(--text2)', label:''};
+  const mochiValEl = document.getElementById('kpi-mochi-val');
+  mochiValEl.textContent = curMochiPct !== null ? curMochiPct + '%' : '—%';
+  mochiValEl.style.color  = kc2.color;
+  document.getElementById('kpi-mochi-ruikei').textContent =
+    cumMochiPct !== null ? '累計: ' + cumMochiPct + '%' : '';
+
+  if (isDaichi) {
+    // ④ 累計平均期待時給（仕事量加重平均：代打ちのみ）
     // kitaiJikyu・shigoto両方有効な場合のみ加重、片方nullの場合は加重しない
     const curShigotoAbs = (kitaiJikyu !== null && shigoto !== null) ? Math.abs(shigoto) : 0;
     const curKitaiSW    = curShigotoAbs > 0 ? kitaiJikyu * curShigotoAbs : 0;
@@ -1387,30 +1412,7 @@ function recalc() {
       : (kitaiJikyu || 0);
     const avgKc         = kitaiColor(avgKitai);
 
-    // ② 持玉比率（現在台：当セッションのみ）
-    // 持玉使用 = 当たり出玉のうち持ち帰らず打ち続けた分（≥0）
-    const mochiUsed     = Math.max(0, hitBalls - recover); // recoverはwatashita込み
-    const curMochiAll   = investBall + mochiUsed;          // 貯玉(moratta込み)＋持玉使用
-    const curTotalBalls = invest / (100 / kokan) + curMochiAll; // 総投資玉（kokan対応）
-    const curMochiPct   = curTotalBalls > 0 ? Math.round(curMochiAll / curTotalBalls * 100) : null;
-
-    // ③ 持玉比率（累計：当日全台の自然加重平均）
-    const cumChoTama  = prev.choTama + investBall + mochiUsed; // 貯玉(moratta込み)＋持玉使用を累積
-    const cumGenBalls = prev.genkinBalls + invest / (100 / kokan); // kokan対応
-    const cumTotal    = cumChoTama + cumGenBalls;
-    const cumMochiPct = cumTotal > 0 ? Math.round(cumChoTama / cumTotal * 100) : null;
-
-    // ④ 持玉比率ブロック表示（代打ち時のみ）
-    const mochiBlock = document.getElementById('kpi-mochi-block');
-    mochiBlock.style.display = '';
-    const kc2        = kitaiJikyu !== null ? kitaiColor(kitaiJikyu) : {color:'var(--text2)', label:''};
-    const mochiValEl = document.getElementById('kpi-mochi-val');
-    mochiValEl.textContent = curMochiPct !== null ? curMochiPct + '%' : '—%';
-    mochiValEl.style.color  = kc2.color;
-    document.getElementById('kpi-mochi-ruikei').textContent =
-      cumMochiPct !== null ? '累計: ' + cumMochiPct + '%' : '累計: —%';
-
-    // ⑤ 累計平均期待時給ブロック表示（代打ち時のみ）
+    // ⑤ 累計平均期待時給ブロック表示（代打ちのみ）
     const avgBlock = document.getElementById('kpi-kitai-avg-block');
     avgBlock.style.display = '';
     const avgValEl = document.getElementById('kpi-kitai-avg-val');
@@ -1418,7 +1420,8 @@ function recalc() {
     avgValEl.style.color  = avgKc.color;
     document.getElementById('kpi-kitai-avg-label').textContent = avgKc.label.split(' ')[0]; // 絵文字のみ
 
-    // ⑥ 累積差玉・報酬
+    // ⑥ 累積差玉・報酬カード（代打ちのみ）
+    ruikeiCard.style.display = '';
     const ruikeiSagi   = prev.sagitama + Math.round(sagitama);
     const ruikeiGenkin = prev.genkinInvest + invest;
     const rewardInfo   = calcFinalReward(ruikeiSagi, avgKitai, ruikeiGenkin, uchi);
@@ -1437,8 +1440,8 @@ function recalc() {
         ? '✅ ' + startLabel + ' | ' + koujoLabel
         : startLabel + ' | 残り ' + fmtN(startLine - Math.max(0, ruikeiSagi)) + '玉 | ' + koujoLabel;
   } else {
+    // 自分・ノリうち：累積差玉カードと累計期待時給ブロックは非表示
     ruikeiCard.style.display = 'none';
-    document.getElementById('kpi-mochi-block').style.display    = 'none';
     document.getElementById('kpi-kitai-avg-block').style.display = 'none';
   }
 
