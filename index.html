@@ -330,6 +330,49 @@ select.input-field{cursor:pointer;appearance:none;background-image:url("data:ima
         </div>
       </div>
     </div>
+
+    <!-- ===== 清算計算機（ノリうちモード時のみ表示） ===== -->
+    <div class="section" id="section-seisan" style="display:none;">
+      <div class="section-header"><div class="section-label">清算計算機</div><div class="section-line"></div></div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+        <span style="color:var(--text2);font-size:13px;">換金率</span>
+        <input class="input-field" type="number" inputmode="numeric" id="seisan-kokan" value="28" style="width:72px;padding:6px 8px;" oninput="calcSeisan()">
+        <span style="color:var(--text2);font-size:13px;">玉交換</span>
+      </div>
+      <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:10px;">
+        <thead>
+          <tr style="color:var(--text2);">
+            <th style="padding:4px 6px;text-align:left;width:48px;"></th>
+            <th style="padding:4px 2px;text-align:center;font-weight:500;">現金投資(円)</th>
+            <th style="padding:4px 2px;text-align:center;font-weight:500;">貯玉投資(玉)</th>
+            <th style="padding:4px 2px;text-align:center;font-weight:500;">回収玉</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style="padding:4px 6px;color:var(--text2);">自分</td>
+            <td style="padding:2px 3px;"><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-jibun-genkin"  oninput="calcSeisan()" style="font-size:13px;padding:6px 4px;"></td>
+            <td style="padding:2px 3px;"><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-jibun-tama"    oninput="calcSeisan()" style="font-size:13px;padding:6px 4px;"></td>
+            <td style="padding:2px 3px;"><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-jibun-recover" oninput="calcSeisan()" style="font-size:13px;padding:6px 4px;"></td>
+          </tr>
+          <tr>
+            <td style="padding:4px 6px;color:var(--text2);">相手</td>
+            <td style="padding:2px 3px;"><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-aite-genkin"  oninput="calcSeisan()" style="font-size:13px;padding:6px 4px;"></td>
+            <td style="padding:2px 3px;"><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-aite-tama"    oninput="calcSeisan()" style="font-size:13px;padding:6px 4px;"></td>
+            <td style="padding:2px 3px;"><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-aite-recover" oninput="calcSeisan()" style="font-size:13px;padding:6px 4px;"></td>
+          </tr>
+        </tbody>
+      </table>
+      <div id="seisan-result" style="padding:10px;background:rgba(255,255,255,0.04);border-radius:8px;font-size:13px;display:none;">
+        <div style="display:grid;grid-template-columns:1fr auto;gap:4px 12px;align-items:baseline;">
+          <span style="color:var(--text2);">合算収支</span>       <span id="seisan-gassan"      style="font-family:'JetBrains Mono',monospace;font-weight:700;text-align:right;">—</span>
+          <span style="color:var(--text2);">一人当たり</span>     <span id="seisan-hitori"       style="font-family:'JetBrains Mono',monospace;text-align:right;">—</span>
+          <span style="color:var(--text2);">自分の実収支</span>   <span id="seisan-jibun-kosshi" style="font-family:'JetBrains Mono',monospace;text-align:right;">—</span>
+          <span style="color:var(--text2);">相手の実収支</span>   <span id="seisan-aite-kosshi"  style="font-family:'JetBrains Mono',monospace;text-align:right;">—</span>
+        </div>
+        <div id="seisan-direction" style="margin-top:10px;padding:8px 12px;background:rgba(0,212,255,0.08);border:1px solid rgba(0,212,255,0.2);border-radius:6px;text-align:center;font-weight:700;color:var(--accent);font-size:14px;">—</div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -895,6 +938,55 @@ function updateTrialMode() {
   if (teEl)  teEl.style.display  = isTrial ? 'none' : '';
 }
 
+// ノリうちモード表示切り替え（清算計算機の show/hide）
+function updateNoriuchiMode() {
+  const uchiEl = document.querySelector('#uchi-chips .chip.selected');
+  const isNori = uchiEl ? uchiEl.textContent === 'ノリうち' : false;
+  const sec    = document.getElementById('section-seisan');
+  if (sec) sec.style.display = isNori ? '' : 'none';
+}
+
+// 清算計算機：リアルタイム計算
+function calcSeisan() {
+  const kokan   = parseFloat(document.getElementById('seisan-kokan').value) || 28;
+  const jGenkin = parseFloat(document.getElementById('seisan-jibun-genkin').value)  || 0;
+  const jTama   = parseFloat(document.getElementById('seisan-jibun-tama').value)    || 0;
+  const jRecover= parseFloat(document.getElementById('seisan-jibun-recover').value) || 0;
+  const aGenkin = parseFloat(document.getElementById('seisan-aite-genkin').value)   || 0;
+  const aTama   = parseFloat(document.getElementById('seisan-aite-tama').value)     || 0;
+  const aRecover= parseFloat(document.getElementById('seisan-aite-recover').value)  || 0;
+
+  const ballToYen = (balls) => balls / kokan * 100;
+  const calcK     = (genkin, tama, recover) => ballToYen(recover) - ballToYen(tama) - genkin;
+
+  const jKosshi = calcK(jGenkin, jTama, jRecover);
+  const aKosshi = calcK(aGenkin, aTama, aRecover);
+  const gassan  = jKosshi + aKosshi;
+  const hitori  = gassan / 2;
+  const seisan  = jKosshi - hitori; // 正なら自分が受け取り、負なら支払い
+  const seisanYen  = Math.abs(Math.round(seisan));
+  const seisanTama = Math.round(seisanYen / 100 * kokan);
+  const direction  = seisan >= 0 ? '相手→自分' : '自分→相手';
+
+  const result = document.getElementById('seisan-result');
+  result.style.display = '';
+  const fmtY  = (v) => { const r = Math.round(v); return (r >= 0 ? '+' : '') + r.toLocaleString('ja-JP') + '円'; };
+  const clsY  = (v) => v >= 0 ? 'pos' : 'neg';
+  const setEl = (id, text, cls) => {
+    const e = document.getElementById(id);
+    if (!e) return;
+    e.textContent = text;
+    if (cls) e.className = cls;
+  };
+  setEl('seisan-gassan',      fmtY(gassan),  clsY(gassan));
+  setEl('seisan-hitori',      fmtY(hitori),  clsY(hitori));
+  setEl('seisan-jibun-kosshi',fmtY(jKosshi), clsY(jKosshi));
+  setEl('seisan-aite-kosshi', fmtY(aKosshi), clsY(aKosshi));
+  setEl('seisan-direction',
+    `清算: ${direction} へ ${seisanYen.toLocaleString('ja-JP')}円 / ${seisanTama.toLocaleString('ja-JP')}玉`
+  );
+}
+
 // =============================================
 // 打ち手チップ生成
 // =============================================
@@ -910,11 +1002,24 @@ function buildUchiChips() {
       wrap.querySelectorAll('.chip').forEach(x=>x.classList.remove('selected'));
       c.classList.add('selected');
       save();
-      recalc();           // 即座にキャッシュ値で表示更新
-      triggerRuikeiSync(); // GASから再集計→AppB削除を反映
+      recalc();
+      triggerRuikeiSync();
+      updateNoriuchiMode();
     };
     wrap.appendChild(c);
   });
+  // ノリうちチップ（固定：マスターと分離）
+  const nori = document.createElement('div');
+  nori.className = 'chip';
+  nori.textContent = 'ノリうち';
+  nori.onclick = () => {
+    wrap.querySelectorAll('.chip').forEach(x=>x.classList.remove('selected'));
+    nori.classList.add('selected');
+    save();
+    recalc();
+    updateNoriuchiMode();
+  };
+  wrap.appendChild(nori);
 }
 
 function updateHeader() {
@@ -1462,10 +1567,34 @@ async function doSend() {
   const soToushiTama   = invest / (100 / kokan) + mochiTotal;
   const mochiRatioSend = soToushiTama > 0 ? parseFloat((mochiTotal / soToushiTama).toFixed(4)) : 1;
 
+  // ========== ノリうちモード：全数値を÷2して自分名義で記録 ==========
+  const isNoriuchi = (uchi === 'ノリうち');
+  const sendUchi      = isNoriuchi ? '自分' : uchi;
+  let   sendKosshi    = isNoriuchi ? kosshi   / 2 : kosshi;
+  let   sendSagitama  = isNoriuchi ? sagitama / 2 : sagitama;
+  let   sendShigoto   = (isNoriuchi && shigoto   !== null) ? shigoto   / 2 : shigoto;
+  let   sendSoKaiten  = isNoriuchi ? soKaiten  / 2 : soKaiten;
+  let   sendSoRounds  = isNoriuchi ? soRounds  / 2 : soRounds;
+  let   sendTodayHits = isNoriuchi ? todayHits / 2 : todayHits;
+  let   sendHitBalls  = isNoriuchi ? hitBalls  / 2 : hitBalls;
+  let   sendJikanStr  = jikanStr;
+  let   sendShigotoJikyu = shigotoJikyu;
+  if (isNoriuchi && kadoH !== null) {
+    const halfKadoH = kadoH / 2;
+    const hh = Math.floor(halfKadoH);
+    const mm = Math.round((halfKadoH - hh) * 60);
+    sendJikanStr     = hh + ':' + String(mm).padStart(2, '0');
+    sendShigotoJikyu = sendShigoto !== null ? sendShigoto / halfKadoH : null;
+  }
+  const sendHoshu    = isNoriuchi ? 0 : hoshu;
+  const sendKoujoAmt = isNoriuchi ? 0 : koujoAmt;
+  // ================================================================
+
   // 送信確認
+  const noriNote = isNoriuchi ? '\n※ノリうちモード：全数値を÷2して自分名義で記録します' : '';
   const confirmMsg = isTrial
-    ? `【送信確認】（試しうち）\n日付：${date}\n店：${S.shop.name}　台番号：${daiban || '未入力'}\n打ち手：${uchi}\n\n収支：${fmt(kosshi)}円\n差玉：${fmtN(Math.round(sagitama))}玉\n\n送信しますか？`
-    : `【送信確認】\n日付：${date}\n店：${S.shop.name}　台番号：${daiban || '未入力'}\n機種：${S.kishu.name}\n打ち手：${uchi}\n\n収支：${fmt(kosshi)}円\n稼働：${jikanStr || '—'}\n仕事量：${shigoto !== null ? fmt(Math.round(shigoto))+'円' : '—'}\n${uchi !== '自分' ? '報酬：¥'+fmtN(hoshu)+(koujoAmt > 0 ? '（控除¥'+fmtN(koujoAmt)+'）' : '') : ''}\n\n送信しますか？`;
+    ? `【送信確認】（試しうち）\n日付：${date}\n店：${S.shop.name}　台番号：${daiban || '未入力'}\n打ち手：${sendUchi}\n\n収支：${fmt(sendKosshi)}円\n差玉：${fmtN(Math.round(sendSagitama))}玉${noriNote}\n\n送信しますか？`
+    : `【送信確認】\n日付：${date}\n店：${S.shop.name}　台番号：${daiban || '未入力'}\n機種：${S.kishu.name}\n打ち手：${sendUchi}\n\n収支：${fmt(sendKosshi)}円\n稼働：${sendJikanStr || '—'}\n仕事量：${sendShigoto !== null ? fmt(Math.round(sendShigoto))+'円' : '—'}\n${sendUchi !== '自分' ? '報酬：¥'+fmtN(sendHoshu)+(sendKoujoAmt > 0 ? '（控除¥'+fmtN(sendKoujoAmt)+'）' : '') : ''}${noriNote}\n\n送信しますか？`;
   showConfirm(
     confirmMsg,
     async () => {
@@ -1478,23 +1607,23 @@ async function doSend() {
           shop:        S.shop.name,
           kishu:       S.kishu.name,
           daiban:      daiban,
-          uchi:        uchi,
-          kosshi:      Math.round(kosshi),
-          jikan:       jikanStr,
-          kitaiJikyu:  kitaiJikyu !== null ? Math.round(kitaiJikyu) : '',
-          shigoto:     shigoto    !== null ? Math.round(shigoto)    : '',
-          shigotoJikyu:shigotoJikyu !== null ? Math.round(shigotoJikyu) : '',
-          soKaiten:    soKaiten,
-          kaitenRitsu: kaitenRitsu !== null ? parseFloat(kaitenRitsu.toFixed(2)) : '',
+          uchi:        sendUchi,                                      // ノリうち→'自分'
+          kosshi:      Math.round(sendKosshi),                       // ノリうち→÷2
+          jikan:       sendJikanStr,                                 // ノリうち→÷2
+          kitaiJikyu:  kitaiJikyu !== null ? Math.round(kitaiJikyu) : '', // 変わらず
+          shigoto:     sendShigoto    !== null ? Math.round(sendShigoto)    : '', // ノリうち→÷2
+          shigotoJikyu:sendShigotoJikyu !== null ? Math.round(sendShigotoJikyu) : '', // ノリうち→再計算
+          soKaiten:    sendSoKaiten,                                 // ノリうち→÷2
+          kaitenRitsu: kaitenRitsu !== null ? parseFloat(kaitenRitsu.toFixed(2)) : '', // 変わらず
           border:      parseFloat(border.toFixed(2)),
           un:          un !== null ? Math.round(un) : '',
-          sagitama:    Math.round(sagitama),
-          kariHoshu:   hoshu,  // 仮報酬（U列）として送信
-          soRounds:    soRounds || 0,
-          todayHits:   todayHits || 0,
-          hitBalls:    Math.round(hitBalls || 0),
-          jitsu1R:     soRounds > 0 ? parseFloat((hitBalls / soRounds).toFixed(1)) : '',
-          genkinInvest:    Math.round(invest),              // W列：現金投資額(円)
+          sagitama:    Math.round(sendSagitama),                     // ノリうち→÷2
+          kariHoshu:   sendHoshu,                                    // ノリうち→0
+          soRounds:    sendSoRounds || 0,                            // ノリうち→÷2
+          todayHits:   sendTodayHits || 0,                          // ノリうち→÷2
+          hitBalls:    Math.round(sendHitBalls || 0),               // ノリうち→÷2
+          jitsu1R:     sendSoRounds > 0 ? parseFloat((sendHitBalls / sendSoRounds).toFixed(1)) : '', // 比率不変
+          genkinInvest:    Math.round(invest),              // W列：現金投資額(円) ノリうちでも生値
           mochiRatio:      mochiRatioSend,               // V列：持ち玉比率（0〜1の小数）
           choTamaInvest:   Math.round(investBallRaw),    // 参考：貯玉投資(発、moratta除く)
           genkinInvestBalls: Math.round(invest / (100 / kokan)), // 参考：現金投資(発)
@@ -1516,10 +1645,10 @@ async function doSend() {
         const data = await res.json();
 
         if (data.success) {
-          // 累積データを保存（2台目引き継ぎ用）
-          if (uchi !== '自分') {
-            addRuikeiData(uchi, date, {
-              sagitama:      Math.round(sagitama),
+          // 累積データを保存（2台目引き継ぎ用、ノリうちは'自分'扱いなのでスキップ）
+          if (sendUchi !== '自分') {
+            addRuikeiData(sendUchi, date, {
+              sagitama:      Math.round(sendSagitama),
               genkinInvest:  Math.round(invest),
               choTama:       Math.round(investBall + mochiTama), // 貯玉(moratta込み)＋持玉使用を保存
               genkinBalls:   Math.round(invest / (100 / kokan)),
@@ -1535,12 +1664,12 @@ async function doSend() {
         }
       } catch(e) {
         // GASはCORSでレスポンスが取れないが送信自体は成功している
-        if (uchi !== '自分') {
-          addRuikeiData(uchi, date, {
-            sagitama:      Math.round(sagitama),
+        if (sendUchi !== '自分') {
+          addRuikeiData(sendUchi, date, {
+            sagitama:      Math.round(sendSagitama),
             genkinInvest:  Math.round(invest),
-            choTama:       Math.round(investBall + mochiUsed), // 貯玉＋持玉使用を保存
-            genkinBalls:   Math.round(invest / 4),
+            choTama:       Math.round(investBall + mochiTama), // 貯玉(moratta込み)＋持玉使用を保存
+            genkinBalls:   Math.round(invest / (100 / kokan)),
             kitaiShigotoW: curKitaiSW2,    // 仕事量加重平均用
             shigotoTotal:  curShigotoAbs2, // 仕事量合計
           });
@@ -1665,9 +1794,9 @@ function calcHoshuLocal(ruikeiSagitama, avgKitaiJikyu, ruikeiGenkinInvest, uchi)
 function getThresholds() {
   return {
     warn:  parseInt(document.getElementById('th-warn').value)  || 1500,
-    ok:    parseInt(document.getElementById('th-ok').value)    || 2000,
-    good:  parseInt(document.getElementById('th-good').value)  || 2500,
-    great: parseInt(document.getElementById('th-great').value) || 3000,
+    ok:    parseInt(document.getElementById('th-ok').value)    || 1800,
+    good:  parseInt(document.getElementById('th-good').value)  || 2300,
+    great: parseInt(document.getElementById('th-great').value) || 2800,
   };
 }
 function saveThresholds() {
@@ -1783,7 +1912,8 @@ function loadData() {
       setRatioVal(d.ratio);
     }
     updateHeader();
-    updateTrialMode(); // 試しうちモード復元
+    updateTrialMode();   // 試しうちモード復元
+    updateNoriuchiMode(); // ノリうちモード復元
   } catch(e) {}
 }
 
