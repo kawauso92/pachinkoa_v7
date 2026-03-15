@@ -644,10 +644,12 @@ window.addEventListener('DOMContentLoaded', async () => {
       updateGuard();
       recalc();
     } catch(e) {}
-    // バックグラウンドで最新取得（店・機種の選択状態を復元）
+    // バックグラウンドで最新取得（店・機種・打ち手の選択状態を復元）
     loadMasters().then(() => {
       const savedShop  = S.shop  ? S.shop.name  : null;
       const savedKishu = S.kishu ? S.kishu.name : null;
+      // buildUchiChips() 前に現在の選択を記録しておく（rebuild でリセットされるため）
+      const savedUchi  = document.querySelector('#uchi-chips .chip.selected')?.textContent || null;
       buildShops();
       buildKishuSelect();
       buildUchiChips();
@@ -659,6 +661,13 @@ window.addEventListener('DOMContentLoaded', async () => {
       if (savedKishu) {
         const k = KISHU.find(x => x.name === savedKishu);
         if (k) { S.kishu = k; document.getElementById('in-kishu').value = savedKishu; }
+      }
+      // 打ち手チップ選択を復元（rebuild でリセットされたため再適用）
+      if (savedUchi) {
+        document.querySelectorAll('#uchi-chips .chip').forEach(c => {
+          c.classList.toggle('selected', c.textContent === savedUchi);
+        });
+        updateNoriuchiMode();
       }
     });
   } else {
@@ -963,10 +972,10 @@ function calcSeisan() {
   const aKosshi = calcK(aGenkin, aTama, aRecover);
   const gassan  = jKosshi + aKosshi;
   const hitori  = gassan / 2;
-  const seisan  = jKosshi - hitori; // 正なら自分が受け取り、負なら支払い
+  const seisan  = jKosshi - hitori; // 負 = 自分が損している = 相手→自分へ支払い / 正 = 自分が得している = 自分→相手へ支払い
   const seisanYen  = Math.abs(Math.round(seisan));
   const seisanTama = Math.round(seisanYen / 100 * kokan);
-  const direction  = seisan >= 0 ? '相手→自分' : '自分→相手';
+  const direction  = seisan <= 0 ? '相手→自分' : '自分→相手';
 
   const result = document.getElementById('seisan-result');
   result.style.display = '';
@@ -1884,11 +1893,12 @@ function loadData() {
     const raw = localStorage.getItem('pachinkoLog_v5');
     if (!raw) return;
     const d = JSON.parse(raw);
-    const ids = ['rotStart','rotEnd','tStart','tEnd','invest','investB','recover','watashita','moratta','hitStart','nodama','date','daiban'];
+    // date は初期化時に当日を設定済みのため復元しない（前日データが残ると誤表示になるため）
+    const ids = ['rotStart','rotEnd','tStart','tEnd','invest','investB','recover','watashita','moratta','hitStart','nodama','daiban'];
     const map = {rotStart:'in-rot-start',rotEnd:'in-rot-end',tStart:'in-time-start',tEnd:'in-time-end',
       invest:'in-invest',investB:'in-invest-ball',recover:'in-recover',
       watashita:'in-watashita',moratta:'in-moratta',
-      hitStart:'in-hit-start',nodama:'in-hit-nodama',date:'in-date',daiban:'in-daiban'};
+      hitStart:'in-hit-start',nodama:'in-hit-nodama',daiban:'in-daiban'};
     ids.forEach(k => { if (d[k]) { const e = document.getElementById(map[k]); if(e) e.value = d[k]; } });
 
     if (d.shop) {
