@@ -1912,12 +1912,13 @@ function loadData() {
     const d = JSON.parse(raw);
     // date は初期化時に当日を設定済みのため復元しない（前日データが残ると誤表示になるため）
     const ids = ['rotStart','rotEnd','tStart','tEnd','invest','investB','recover','watashita','moratta','hitStart','nodama','daiban','eventName','memo'];
-    const map = {rotStart:'in-rot-start',rotEnd:'in-rot-end',tStart:'in-time-start',tEnd:'in-time-end',
+    const map = {
+      rotStart:'in-rot-start',rotEnd:'in-rot-end',tStart:'in-time-start',tEnd:'in-time-end',
       invest:'in-invest',investB:'in-invest-ball',recover:'in-recover',
       watashita:'in-watashita',moratta:'in-moratta',
-      eventName:'in-event',memo:'in-memo'};
       hitStart:'in-hit-start',nodama:'in-hit-nodama',daiban:'in-daiban',
-      eventName:'in-event',memo:'in-memo'};
+      eventName:'in-event',memo:'in-memo'
+    };
     ids.forEach(k => { if (d[k]) { const e = document.getElementById(map[k]); if(e) e.value = d[k]; } });
 
     if (d.shop) {
