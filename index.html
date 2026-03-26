@@ -440,7 +440,7 @@ select.input-field{cursor:pointer;appearance:none;background-image:url("data:ima
       <div class="ratio-title">BALL RATIO</div>
       <div class="ratio-val-display" id="ratio-display">100%</div>
     </div>
-    <input type="range" class="ratio-slider" min="0" max="100" value="100" id="ratio-slider" oninput="setRatioVal(this.value)">
+    <input type="range" class="ratio-slider" min="0" max="100" value="100" id="ratio-slider" oninput="setRatioVal(this.value)" onchange="setRatioVal(this.value)">
     <div class="ratio-presets">
       <div class="ratio-preset active" id="rp-100">100%</div>
       <div class="ratio-preset" id="rp-75">75%</div>
@@ -1189,6 +1189,11 @@ function setRatio(val) {
   setRatioVal(val);
 }
 
+function getExpectedCostPerBall(kokan, ratio) {
+  const kankin = 100 / kokan;
+  return (kankin * ratio) + (4 * (1 - ratio));
+}
+
 // =============================================
 // メイン計算
 // =============================================
@@ -1277,13 +1282,14 @@ function recalc() {
   const border = k.hatsua / (heikin * k.heiren / 250);
 
   // 期待時給（試しうちはスキップ）
-  // 二重課税防止：持ち玉比率は控除（37%）のみで反映するため、
-  // 期待時給の計算・判定は常に持ち玉100%ベース（tama=kankin固定）で行う
+  // 持玉比率に応じて、投資1玉あたりのコストを
+  // 「持玉の換金単価」と「現金4円」の加重平均で評価する
   let kitaiJikyu = null;
   if (!isTrial && kaitenRitsu) {
     const kankin = 100 / kokan;
+    const costPerBall = getExpectedCostPerBall(kokan, ratio);
     const zenki  = heikin * k.jikan / k.total * kankin;
-    const koki   = 250 * k.jikan / kaitenRitsu * kankin;  // 持ち玉100%固定（ratio=1 → tama=kankin）
+    const koki   = 250 * k.jikan / kaitenRitsu * costPerBall;
     kitaiJikyu = zenki - koki;
   }
 
@@ -1551,8 +1557,9 @@ async function doSend() {
   let kitaiJikyu = null;
   if (!isTrial && kaitenRitsu) {
     const kankin = 100 / kokan;
+    const costPerBall = getExpectedCostPerBall(kokan, ratio);
     const zenki  = heikin * k.jikan / k.total * kankin;
-    const koki   = 250 * k.jikan / kaitenRitsu * kankin;  // 持ち玉100%固定（二重課税防止）
+    const koki   = 250 * k.jikan / kaitenRitsu * costPerBall;
     kitaiJikyu   = zenki - koki;
   }
 
