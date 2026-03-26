@@ -68,6 +68,7 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
 .input-field{background:var(--surface3);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);padding:9px 10px;font-size:16px;font-family:'JetBrains Mono',monospace;font-weight:700;width:100%;outline:none;transition:border-color 0.2s;-webkit-appearance:none;}
 .input-field:focus{border-color:var(--accent);box-shadow:0 0 0 2px rgba(0,212,255,0.1);}
 .input-field::placeholder{color:var(--text3);font-weight:400;}
+.input-field.textarea{resize:vertical;min-height:96px;font-family:'Noto Sans JP',sans-serif;font-weight:400;line-height:1.6;}
 /* 手入力 vs 自動計算 視覚区別 */
 .input-label{font-size:9px;color:var(--text2);letter-spacing:1px;margin-bottom:5px;display:flex;align-items:center;gap:5px;}
 .badge-manual{font-size:8px;padding:1px 5px;border-radius:3px;background:rgba(0,212,255,0.15);color:var(--accent);border:1px solid rgba(0,212,255,0.3);letter-spacing:0;font-family:'JetBrains Mono',monospace;}
@@ -330,7 +331,6 @@ select.input-field{cursor:pointer;appearance:none;background-image:url("data:ima
         </div>
       </div>
     </div>
-
     <!-- ===== 清算計算機（ノリうちモード時のみ表示） ===== -->
     <div class="section" id="section-seisan" style="display:none;">
       <div class="section-header"><div class="section-label">清算計算機</div><div class="section-line"></div></div>
@@ -371,6 +371,13 @@ select.input-field{cursor:pointer;appearance:none;background-image:url("data:ima
           <span style="color:var(--text2);">相手の実収支</span>   <span id="seisan-aite-kosshi"  style="font-family:'JetBrains Mono',monospace;text-align:right;">—</span>
         </div>
         <div id="seisan-direction" style="margin-top:10px;padding:8px 12px;background:rgba(0,212,255,0.08);border:1px solid rgba(0,212,255,0.2);border-radius:6px;text-align:center;font-weight:700;color:var(--accent);font-size:14px;">—</div>
+      </div>
+    </div>
+    <div class="section">
+      <div class="section-header"><div class="section-label">メモ</div><div class="section-line"></div></div>
+      <div class="input-group">
+        <div class="input-label">メモ <span class="badge-manual">入力</span></div>
+        <textarea class="input-field textarea is-manual" id="in-memo" placeholder="自由メモ" oninput="save()"></textarea>
       </div>
     </div>
   </div>
@@ -528,6 +535,10 @@ select.input-field{cursor:pointer;appearance:none;background-image:url("data:ima
     <div class="setting-row">
       <div class="input-label" style="display:block;margin-bottom:6px;">打ち手</div>
       <div class="chip-select" id="uchi-chips"></div>
+    </div>
+    <div class="setting-row">
+      <div class="input-label" style="display:block;margin-bottom:6px;">イベント</div>
+      <input class="input-field" type="text" id="in-event" placeholder="例：じゃんじゃん来店" oninput="save()">
     </div>
   </div>
   <button class="action-btn send" id="send-btn">📤 記録送信</button>
@@ -1485,6 +1496,8 @@ async function doSend() {
   const tStart     = document.getElementById('in-time-start').value;
   const tEnd       = document.getElementById('in-time-end').value;
   const daiban     = document.getElementById('in-daiban').value || '';
+  const eventName  = document.getElementById('in-event').value.trim();
+  const memo       = document.getElementById('in-memo').value.trim();
   const kokan      = S.shop.kokan;
   const k          = S.kishu;
   const ratio      = S.ratio / 100;
@@ -1618,6 +1631,7 @@ async function doSend() {
           date:        date,
           shop:        S.shop.name,
           kishu:       S.kishu.name,
+          event:       eventName || '',
           daiban:      daiban,
           uchi:        sendUchi,                                      // ノリうち→'自分'
           kosshi:      Math.round(sendKosshi),                       // ノリうち→÷2
@@ -1641,6 +1655,7 @@ async function doSend() {
           genkinInvestBalls: Math.round(invest / (100 / kokan)), // 参考：現金投資(発)
           watashita:       Math.round(watashita),        // 渡した玉(発)
           moratta:         Math.round(moratta),          // もらった玉(発)
+          memo:            memo || '',
         };
         console.log('[doSend] payload:', JSON.stringify(payload, null, 2));
         console.log('[doSend] 内訳 watashita:', watashita, 'moratta:', moratta,
@@ -1875,6 +1890,8 @@ function save() {
       nodama:   document.getElementById('in-hit-nodama').value,
       date:     document.getElementById('in-date').value,
       daiban:   document.getElementById('in-daiban').value,
+      eventName: document.getElementById('in-event').value,
+      memo:      document.getElementById('in-memo').value,
       shop:     S.shop  ? S.shop.name  : null,
       kishu:    S.kishu ? S.kishu.name : null,
       uchi:     document.querySelector('#uchi-chips .chip.selected')?.textContent || '自分',
@@ -1894,11 +1911,13 @@ function loadData() {
     if (!raw) return;
     const d = JSON.parse(raw);
     // date は初期化時に当日を設定済みのため復元しない（前日データが残ると誤表示になるため）
-    const ids = ['rotStart','rotEnd','tStart','tEnd','invest','investB','recover','watashita','moratta','hitStart','nodama','daiban'];
+    const ids = ['rotStart','rotEnd','tStart','tEnd','invest','investB','recover','watashita','moratta','hitStart','nodama','daiban','eventName','memo'];
     const map = {rotStart:'in-rot-start',rotEnd:'in-rot-end',tStart:'in-time-start',tEnd:'in-time-end',
       invest:'in-invest',investB:'in-invest-ball',recover:'in-recover',
       watashita:'in-watashita',moratta:'in-moratta',
-      hitStart:'in-hit-start',nodama:'in-hit-nodama',daiban:'in-daiban'};
+      eventName:'in-event',memo:'in-memo'};
+      hitStart:'in-hit-start',nodama:'in-hit-nodama',daiban:'in-daiban',
+      eventName:'in-event',memo:'in-memo'};
     ids.forEach(k => { if (d[k]) { const e = document.getElementById(map[k]); if(e) e.value = d[k]; } });
 
     if (d.shop) {
@@ -1944,6 +1963,7 @@ function afterSendReload() {
     ['rotStart','rotEnd','tStart','tEnd',
      'invest','investB','recover','watashita','moratta',
      'hitStart','nodama','daiban'].forEach(k => { d[k] = ''; });
+    d.memo = '';
     d.hits = [];
     localStorage.setItem('pachinkoLog_v5', JSON.stringify(d));
   } catch(e) {
@@ -1958,22 +1978,25 @@ function afterSendReload() {
 function doReset() {
   showConfirm('全データをリセットしますか？\nこの操作は取り消せません。', () => {
     showConfirm('本当にリセットしますか？', () => {
+      const eventValue = document.getElementById('in-event').value;
       localStorage.removeItem('pachinkoLog_v5');
       S.shop = null; S.kishu = null; S.ratio = 100; S.hits = [];
       ['in-rot-start','in-rot-end','in-time-start','in-time-end',
        'in-invest','in-invest-ball','in-recover',
        'in-watashita','in-moratta',
-       'in-hit-start','in-hit-nodama'].forEach(id => {
+       'in-hit-start','in-hit-nodama','in-memo'].forEach(id => {
         const e = document.getElementById(id); if(e) e.value='';
       });
       document.getElementById('in-shop').value = '';
       document.getElementById('in-kishu').value = '';
+      document.getElementById('in-event').value = eventValue;
       document.getElementById('disp-kankin').textContent = '—';
       document.getElementById('ratio-slider').value = 100;
       renderHitList();
       updateHeader();
       updateGuard();
       recalc();
+      save();
     });
   });
 }
