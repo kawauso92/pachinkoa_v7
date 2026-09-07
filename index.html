@@ -280,12 +280,16 @@ select.input-field{cursor:pointer;appearance:none;background-image:url("data:ima
 
     <div class="section" id="section-rotation">
       <div class="section-header"><div class="section-label">回転数</div><div class="section-line"></div></div>
+      <div class="chip-select" id="rot-mode-chips" style="margin-bottom:10px;">
+        <button type="button" class="chip selected" data-mode="simple" aria-pressed="true">シンプル</button>
+        <button type="button" class="chip" data-mode="segments" aria-pressed="false">区間入力</button>
+      </div>
       <div class="rotation-display">
         <div><div class="rot-val" id="disp-total-rot">—</div><div class="rot-label">総回転 <span class="badge-auto">AUTO</span></div></div>
         <div><div class="rot-val" id="disp-normal-rot">—</div><div class="rot-label">通常回転 <span class="badge-auto">AUTO</span></div></div>
         <div><div class="rot-val" id="disp-rot-rate">—</div><div class="rot-label">回転率 <span class="badge-auto">AUTO</span></div></div>
       </div>
-      <div class="input-grid">
+      <div class="input-grid" id="simple-rot-inputs">
         <div class="input-group">
           <div class="input-label">開始回転 <span class="badge-manual">入力</span></div>
           <input class="input-field is-manual" type="number" inputmode="numeric" placeholder="0" id="in-rot-start" oninput="recalc();save()">
@@ -294,6 +298,14 @@ select.input-field{cursor:pointer;appearance:none;background-image:url("data:ima
           <div class="input-label">終了回転 <span class="badge-manual">入力</span></div>
           <input class="input-field is-manual" type="number" inputmode="numeric" placeholder="0" id="in-rot-end" oninput="recalc();save()">
         </div>
+      </div>
+      <div id="segment-rot-panel" style="display:none;">
+        <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) 52px;gap:8px;font-size:11px;color:var(--text2);margin-bottom:6px;">
+          <span>開始・時短抜け</span><span>終了・当たり</span><span></span>
+        </div>
+        <div id="rot-segment-list"></div>
+        <button type="button" class="add-hit-btn" id="add-rot-segment-btn" style="margin-top:8px;">＋ 区間追加</button>
+        <div style="margin-top:8px;font-size:11px;color:var(--text2);">総回転: <span id="disp-segment-sum">—</span></div>
       </div>
     </div>
 
@@ -628,6 +640,8 @@ const S = {
   kishu: null,
   ratio: 100,
   hits: [],
+  rotationMode: 'simple',
+  rotSegments: [],
 };
 
 // =============================================
@@ -788,6 +802,10 @@ async function loadMasters() {
 // イベントバインド（全てここで一括管理）
 // =============================================
 function bindEvents() {
+  document.querySelectorAll('#rot-mode-chips .chip').forEach(chip => {
+    chip.onclick = () => setRotationMode(chip.dataset.mode);
+  });
+  document.getElementById('add-rot-segment-btn').onclick = addRotSegment;
   // タブ
   document.getElementById('nav-main').onclick    = () => switchTab('main');
   document.getElementById('nav-hit').onclick     = () => switchTab('hit');
@@ -1197,7 +1215,104 @@ function getExpectedCostPerBall(kokan, ratio) {
 // =============================================
 // メイン計算
 // =============================================
+function calcSegmentRot(left, right) {
+  const l = parseFloat(left), r = parseFloat(right);
+  if (!Number.isFinite(l) || !Number.isFinite(r)) return 0;
+  return Math.max(0, r - l);
+}
+
+function getSoKaiten() {
+  if (S.rotationMode === 'segments') {
+    return S.rotSegments.reduce((sum, row) => sum + calcSegmentRot(row.left, row.right), 0);
+  }
+  const start = parseFloat(document.getElementById('in-rot-start').value) || 0;
+  const end = parseFloat(document.getElementById('in-rot-end').value) || 0;
+  return end - start;
+}
+
+function updateRotationModeUI() {
+  document.querySelectorAll('#rot-mode-chips .chip').forEach(chip => {
+    const selected = chip.dataset.mode === S.rotationMode;
+    chip.classList.toggle('selected', selected);
+    chip.setAttribute('aria-pressed', String(selected));
+  });
+  document.getElementById('simple-rot-inputs').style.display = S.rotationMode === 'simple' ? '' : 'none';
+  document.getElementById('segment-rot-panel').style.display = S.rotationMode === 'segments' ? '' : 'none';
+}
+
+function setRotationMode(mode) {
+  S.rotationMode = mode === 'segments' ? 'segments' : 'simple';
+  updateRotationModeUI();
+  recalc();
+  save();
+}
+
+function renderRotSegments() {
+  const list = document.getElementById('rot-segment-list');
+  list.replaceChildren();
+  S.rotSegments.forEach((row, index) => {
+    const el = document.createElement('div');
+    el.style.cssText = 'display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) 52px;gap:8px;margin-bottom:10px;align-items:center;';
+    ['left', 'right'].forEach(side => {
+      const input = document.createElement('input');
+      input.className = 'input-field is-manual';
+      input.type = 'number';
+      input.inputMode = 'numeric';
+      input.placeholder = '0';
+      input.value = row[side];
+      input.style.minWidth = '0';
+      input.setAttribute('aria-label', '区間' + (index + 1) + ' ' + (side === 'left' ? '開始・時短抜け' : '終了・当たり'));
+      input.oninput = () => onSegmentInput(index, side, input.value);
+      el.appendChild(input);
+    });
+    const del = document.createElement('button');
+    del.type = 'button';
+    del.className = 'hit-del';
+    del.textContent = '削除';
+    del.setAttribute('aria-label', '区間' + (index + 1) + 'を削除');
+    del.onclick = () => removeRotSegment(index);
+    el.appendChild(del);
+    const diff = document.createElement('div');
+    diff.id = 'rot-segment-diff-' + index;
+    diff.style.cssText = 'grid-column:1/-1;font-size:11px;color:var(--text2);';
+    el.appendChild(diff);
+    list.appendChild(el);
+  });
+  updateRotSegmentTotals();
+}
+
+function updateRotSegmentTotals() {
+  S.rotSegments.forEach((row, index) => {
+    const l = parseFloat(row.left), r = parseFloat(row.right);
+    const diff = document.getElementById('rot-segment-diff-' + index);
+    if (diff) diff.textContent = '→ この区間: ' + (Number.isFinite(l) && Number.isFinite(r) && r >= l ? fmtN(r - l) : '—');
+  });
+  const total = getSoKaiten();
+  document.getElementById('disp-segment-sum').textContent = total > 0 ? fmtN(total) : '—';
+}
+
+function addRotSegment() {
+  S.rotSegments.push({left: '', right: ''});
+  renderRotSegments();
+  recalc();
+  save();
+}
+
+function removeRotSegment(index) {
+  S.rotSegments.splice(index, 1);
+  renderRotSegments();
+  recalc();
+  save();
+}
+
+function onSegmentInput(index, side, value) {
+  S.rotSegments[index][side] = value;
+  recalc();
+  save();
+}
+
 function recalc() {
+  updateRotSegmentTotals();
   if (!S.shop || !S.kishu) return;
 
   const invest        = parseFloat(document.getElementById('in-invest').value)      || 0;
@@ -1207,8 +1322,6 @@ function recalc() {
   const moratta       = parseFloat(document.getElementById('in-moratta').value)     || 0; // もらった玉→投資玉に加算
   const investBall    = investBallRaw + moratta; // もらった玉を投資玉に加算
   const recover       = recoverRaw + watashita;  // 渡した玉を回収玉に加算
-  const rotStart   = parseFloat(document.getElementById('in-rot-start').value)   || 0;
-  const rotEnd     = parseFloat(document.getElementById('in-rot-end').value)     || 0;
   const tStart     = document.getElementById('in-time-start').value;
   const tEnd       = document.getElementById('in-time-end').value;
   const hitStart   = parseInt(document.getElementById('in-hit-start').value)     || 0;
@@ -1238,7 +1351,7 @@ function recalc() {
   const jikyu = (kadoH && kadoH > 0) ? kosshi / kadoH : null;
 
   // 回転数
-  const soKaiten     = rotEnd - rotStart;
+  const soKaiten     = getSoKaiten();
   const normalKaiten = soKaiten;
 
   // 当たり集計
@@ -1497,8 +1610,6 @@ async function doSend() {
   const moratta       = parseFloat(document.getElementById('in-moratta').value)     || 0; // もらった玉
   const investBall    = investBallRaw + moratta; // もらった玉を投資玉に加算
   const recover       = recoverRaw + watashita;  // 渡した玉を回収玉に加算
-  const rotStart      = parseFloat(document.getElementById('in-rot-start').value)   || 0;
-  const rotEnd     = parseFloat(document.getElementById('in-rot-end').value)     || 0;
   const tStart     = document.getElementById('in-time-start').value;
   const tEnd       = document.getElementById('in-time-end').value;
   const daiban     = document.getElementById('in-daiban').value || '';
@@ -1530,7 +1641,7 @@ async function doSend() {
   const kosshi    = (recover - investBall) * (100/kokan) - invest;
   const soToushi  = invest/4 + investBall;
   const sagitama  = recover - soToushi;
-  const soKaiten  = rotEnd - rotStart;
+  const soKaiten  = getSoKaiten();
 
   let hitBalls = 0, riron = 0, soRounds = 0, todayHits = 0;
   S.hits.forEach(h => {
@@ -1886,6 +1997,8 @@ function save() {
     const d = {
       rotStart: document.getElementById('in-rot-start').value,
       rotEnd:   document.getElementById('in-rot-end').value,
+      rotationMode: S.rotationMode,
+      rotSegments: S.rotSegments,
       tStart:   document.getElementById('in-time-start').value,
       tEnd:     document.getElementById('in-time-end').value,
       invest:     document.getElementById('in-invest').value,
@@ -1917,6 +2030,13 @@ function loadData() {
     const raw = localStorage.getItem('pachinkoLog_v5');
     if (!raw) return;
     const d = JSON.parse(raw);
+    S.rotationMode = d.rotationMode === 'segments' ? 'segments' : 'simple';
+    S.rotSegments = Array.isArray(d.rotSegments) ? d.rotSegments.filter(row => row && typeof row === 'object').map(row => ({
+      left: typeof row.left === 'string' || typeof row.left === 'number' ? row.left : '',
+      right: typeof row.right === 'string' || typeof row.right === 'number' ? row.right : '',
+    })) : [];
+    updateRotationModeUI();
+    renderRotSegments();
     // date は初期化時に当日を設定済みのため復元しない（前日データが残ると誤表示になるため）
     const ids = ['rotStart','rotEnd','tStart','tEnd','invest','investB','recover','watashita','moratta','hitStart','nodama','daiban','eventName','memo'];
     const map = {
@@ -1973,6 +2093,7 @@ function afterSendReload() {
      'hitStart','nodama','daiban'].forEach(k => { d[k] = ''; });
     d.memo = '';
     d.hits = [];
+    d.rotSegments = [];
     localStorage.setItem('pachinkoLog_v5', JSON.stringify(d));
   } catch(e) {
     localStorage.removeItem('pachinkoLog_v5');
@@ -1989,6 +2110,9 @@ function doReset() {
       const eventValue = document.getElementById('in-event').value;
       localStorage.removeItem('pachinkoLog_v5');
       S.shop = null; S.kishu = null; S.ratio = 100; S.hits = [];
+      S.rotationMode = 'simple'; S.rotSegments = [];
+      updateRotationModeUI();
+      renderRotSegments();
       ['in-rot-start','in-rot-end','in-time-start','in-time-end',
        'in-invest','in-invest-ball','in-recover',
        'in-watashita','in-moratta',
