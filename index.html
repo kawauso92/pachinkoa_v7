@@ -1562,14 +1562,9 @@ function recalc() {
     cumMochiPct !== null ? '累計: ' + cumMochiPct + '%' : '';
 
   if (isDaichi) {
-    // ④ 累計平均期待時給（仕事量加重平均：代打ちのみ）
-    // kitaiJikyu・shigoto両方有効な場合のみ加重、片方nullの場合は加重しない
-    const curShigotoAbs = (kitaiJikyu !== null && shigoto !== null) ? Math.abs(shigoto) : 0;
-    const curKitaiSW    = curShigotoAbs > 0 ? kitaiJikyu * curShigotoAbs : 0;
-    const totalShigoto  = (prev.shigotoTotal || 0) + curShigotoAbs;
-    const avgKitai      = totalShigoto > 0
-      ? ((prev.kitaiShigotoW || 0) + curKitaiSW) / totalShigoto
-      : (kitaiJikyu || 0);
+    // 報酬の平均はAppBと同じ実効時間で加重する。
+    const currentReward = getRewardWeight(soKaiten, k.jikan, kitaiJikyu === null ? null : Math.round(kitaiJikyu));
+    const avgKitai = getRewardAverage(prev, currentReward);
     const avgKc         = kitaiColor(avgKitai);
 
     // ⑤ 累計平均期待時給ブロック表示（代打ちのみ）
@@ -1593,7 +1588,7 @@ function recalc() {
     const sagiClass    = ruikeiSagi >= 0 ? 'pos' : 'neg';
     el('kpi-ruikei-sagitama', fmtN(Math.round(ruikeiSagi))+'玉', 'kpi-value '+sagiClass);
     document.getElementById('kpi-ruikei-sub').textContent = '前台引継: '+fmtN(Math.round(prev.sagitama))+'玉';
-    el('kpi-hoshu', '¥'+fmtN(hoshu), 'kpi-value pos');
+    el('kpi-hoshu', prev.rewardVersion === 1 ? '¥'+fmtN(hoshu) : '確認中', 'kpi-value pos');
     const startLabel = startLine === 5000 ? '5千スタート' : '1万スタート';
     document.getElementById('kpi-hoshu-sub').textContent =
       ruikeiSagi >= startLine
@@ -1622,6 +1617,16 @@ async function doSend() {
 
   const date    = document.getElementById('in-date').value;
   if (!date)    { showAlert('日付を入力してください'); return; }
+
+  // 旧方式の累計が残っている場合だけ、一度オンラインで移行する。
+  const rewardUchi = document.querySelector('#uchi-chips .chip.selected')?.textContent || '自分';
+  if (getRuikeiData(rewardUchi, date).rewardVersion !== 1) {
+    await syncRuikeiFromGAS();
+    if (getRuikeiData(rewardUchi, date).rewardVersion !== 1) {
+      showAlert('前台の報酬計算を更新できません。通信状態を確認して再試行してください。');
+      return;
+    }
+  }
 
   // 計算値を収集
   const invest        = parseFloat(document.getElementById('in-invest').value)      || 0;
@@ -1714,13 +1719,8 @@ async function doSend() {
   const prev       = getRuikeiData(uchi, date);
   const ruikeiSagi = prev.sagitama + Math.round(sagitama);
   const ruikeiGenkin = prev.genkinInvest + invest;
-  // 仕事量加重平均期待時給（kitaiJikyu・shigoto両方有効な場合のみ加重、AppBと統一）
-  const curShigotoAbs2 = (kitaiJikyu !== null && shigoto !== null) ? Math.abs(shigoto) : 0;
-  const curKitaiSW2    = curShigotoAbs2 > 0 ? kitaiJikyu * curShigotoAbs2 : 0;
-  const totalShigoto2  = (prev.shigotoTotal || 0) + curShigotoAbs2;
-  const avgKitai2      = totalShigoto2 > 0
-    ? ((prev.kitaiShigotoW || 0) + curKitaiSW2) / totalShigoto2
-    : (kitaiJikyu || 0);
+  const currentReward = getRewardWeight(soKaiten, k.jikan, kitaiJikyu === null ? null : Math.round(kitaiJikyu));
+  const avgKitai2 = getRewardAverage(prev, currentReward);
   const rewardFinal = calcFinalReward(ruikeiSagi, avgKitai2, ruikeiGenkin, uchi);
   const hoshu      = rewardFinal.final;
   const koujoAmt   = rewardFinal.koujo;
@@ -1818,8 +1818,8 @@ async function doSend() {
               genkinInvest:  Math.round(invest),
               choTama:       Math.round(investBall + mochiTama), // 貯玉(moratta込み)＋持玉使用を保存
               genkinBalls:   Math.round(invest / (100 / kokan)),
-              kitaiShigotoW: curKitaiSW2,    // 仕事量加重平均用
-              shigotoTotal:  curShigotoAbs2, // 仕事量合計
+              rewardWeighted: currentReward.weighted,
+              rewardWeight: currentReward.weight,
             });
           }
           showAlert('✅ 送信完了！');
@@ -1836,8 +1836,8 @@ async function doSend() {
             genkinInvest:  Math.round(invest),
             choTama:       Math.round(investBall + mochiTama), // 貯玉(moratta込み)＋持玉使用を保存
             genkinBalls:   Math.round(invest / (100 / kokan)),
-            kitaiShigotoW: curKitaiSW2,    // 仕事量加重平均用
-            shigotoTotal:  curShigotoAbs2, // 仕事量合計
+            rewardWeighted: currentReward.weighted,
+            rewardWeight: currentReward.weight,
           });
         }
         showAlert('✅ 送信完了！');
@@ -1864,12 +1864,22 @@ function calcHoshu(uchi, sagitama) {
 // =============================================
 // 累積データ管理（打ち手別・日付別・JSON）
 // =============================================
-const RUIKEI_EMPTY = { sagitama: 0, genkinInvest: 0, kitaiWeight: 0, kadoTotal: 0, choTama: 0, genkinBalls: 0, kitaiShigotoW: 0, shigotoTotal: 0 };
+const RUIKEI_EMPTY = { sagitama: 0, genkinInvest: 0, kitaiWeight: 0, kadoTotal: 0, choTama: 0, genkinBalls: 0, rewardWeighted: 0, rewardWeight: 0, rewardVersion: 1 };
+function getRewardWeight(rot, rate, kitai) {
+  const weight = Number(rot) / Number(rate);
+  if (kitai === null || kitai === undefined || kitai === '' || !Number.isFinite(Number(kitai)) ||
+      !Number.isFinite(weight) || Number(rot) <= 0 || Number(rate) <= 0) return {weight: 0, weighted: 0};
+  return {weight, weighted: Number(kitai) * weight};
+}
+function getRewardAverage(prev, current) {
+  const weight = (prev.rewardWeight || 0) + current.weight;
+  return weight > 0 ? ((prev.rewardWeighted || 0) + current.weighted) / weight : 0;
+}
 function getRuikeiData(uchi, date) {
   if (!uchi || uchi === '自分') return {...RUIKEI_EMPTY};
   try {
     const d = JSON.parse(localStorage.getItem('ruikei_v7_' + date + '_' + uchi));
-    return d || {...RUIKEI_EMPTY};
+    return d ? {...RUIKEI_EMPTY, ...d, rewardVersion: d.rewardVersion || 0} : {...RUIKEI_EMPTY};
   } catch { return {...RUIKEI_EMPTY}; }
 }
 function addRuikeiData(uchi, date, data) {
@@ -1883,8 +1893,9 @@ function addRuikeiData(uchi, date, data) {
     kadoTotal:     p.kadoTotal     + (data.kadoTotal     || 0),  // 旧フィールド（後方互換）
     choTama:       p.choTama       + (data.choTama       || 0),
     genkinBalls:   p.genkinBalls   + (data.genkinBalls   || 0),
-    kitaiShigotoW: (p.kitaiShigotoW || 0) + (data.kitaiShigotoW || 0), // 仕事量加重平均用
-    shigotoTotal:  (p.shigotoTotal  || 0) + (data.shigotoTotal  || 0), // 仕事量合計
+    rewardWeighted: (p.rewardWeighted || 0) + (data.rewardWeighted || 0),
+    rewardWeight: (p.rewardWeight || 0) + (data.rewardWeight || 0),
+    rewardVersion: 1,
   }));
 }
 // =============================================
@@ -1900,23 +1911,31 @@ async function syncRuikeiFromGAS() {
   const uchi   = uchiEl ? uchiEl.textContent : '自分';
   const date   = document.getElementById('in-date').value;
   if (!uchi || uchi === '自分' || !date) return;
+  const cacheKey = 'ruikei_v7_' + date + '_' + uchi;
+  const beforeSync = localStorage.getItem(cacheKey);
   try {
     const res  = await fetch(GAS_URL + '?action=records&limit=200', {redirect: 'follow'});
     const data = await res.json();
     if (!data.success || !Array.isArray(data.records)) return;
     // 同日・同打ち手のレコードだけ絞り込んで累計を再計算
     const recs = data.records.filter(r => r.date === date && r.uchi === uchi);
-    const rebuilt = {...RUIKEI_EMPTY};
+    const old = getRuikeiData(uchi, date);
+    const rebuilt = {...RUIKEI_EMPTY, choTama: old.choTama, genkinBalls: old.genkinBalls};
     recs.forEach(r => {
       rebuilt.sagitama     += (r.sagitama     || 0);
       rebuilt.genkinInvest += (r.genkinInvest  || 0);
-      const absShigoto      = r.shigoto != null ? Math.abs(r.shigoto) : 0;
-      if (absShigoto > 0 && r.kitaiJikyu != null) {
-        rebuilt.kitaiShigotoW += r.kitaiJikyu * absShigoto;
-        rebuilt.shigotoTotal  += absShigoto;
-      }
+      const machine = KISHU.find(k => k.name === r.kishu);
+      const w = getRewardWeight(r.soKaiten, machine ? machine.jikan : r.machineHourlyRate, r.kitaiJikyu);
+      rebuilt.rewardWeighted += w.weighted;
+      rebuilt.rewardWeight += w.weight;
+      // 比率表示用の既存キャッシュはこの同期で消さない。
+
     });
-    localStorage.setItem('ruikei_v7_' + date + '_' + uchi, JSON.stringify(rebuilt));
+    // 同期中に送信済み累計が更新された場合は、古い応答で上書きしない。
+    if (localStorage.getItem(cacheKey) !== beforeSync) return false;
+    localStorage.setItem(cacheKey, JSON.stringify(rebuilt));
+    recalc();
+    return true;
   } catch(e) {
     // GAS取得失敗時は既存キャッシュを維持
   }
@@ -2092,6 +2111,8 @@ function loadData() {
       document.getElementById('ratio-slider').value = d.ratio;
       setRatioVal(d.ratio);
     }
+    const cachedReward = getRuikeiData(d.uchi, document.getElementById('in-date').value);
+    if (d.uchi && d.uchi !== '自分' && cachedReward.rewardVersion !== 1) triggerRuikeiSync();
     updateHeader();
     updateTrialMode();   // 試しうちモード復元
     updateNoriuchiMode(); // ノリうちモード復元
