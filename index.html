@@ -1215,10 +1215,32 @@ function getExpectedCostPerBall(kokan, ratio) {
 // =============================================
 // メイン計算
 // =============================================
+function parseSegmentLeft(val) {
+  const s = String(val ?? '').trim();
+  if (s === '') return 0; // 未入力は打ち始め0扱い（placeholderの0と区別）
+  const n = parseFloat(s);
+  return Number.isFinite(n) ? n : null;
+}
+function parseSegmentRight(val) {
+  const s = String(val ?? '').trim();
+  if (s === '') return null;
+  const n = parseFloat(s);
+  return Number.isFinite(n) ? n : null;
+}
 function calcSegmentRot(left, right) {
-  const l = parseFloat(left), r = parseFloat(right);
-  if (!Number.isFinite(l) || !Number.isFinite(r)) return 0;
+  const r = parseSegmentRight(right);
+  if (r === null) return 0;
+  const l = parseSegmentLeft(left);
+  if (l === null) return 0;
   return Math.max(0, r - l);
+}
+function formatSegmentDiff(left, right) {
+  const r = parseSegmentRight(right);
+  if (r === null) return '—';
+  const l = parseSegmentLeft(left);
+  if (l === null) return '—';
+  const d = r - l;
+  return d >= 0 ? fmtN(d) : '—';
 }
 
 function getSoKaiten() {
@@ -1258,7 +1280,7 @@ function renderRotSegments() {
       input.className = 'input-field is-manual';
       input.type = 'number';
       input.inputMode = 'numeric';
-      input.placeholder = '0';
+      input.placeholder = 'G';
       input.value = row[side];
       input.style.minWidth = '0';
       input.setAttribute('aria-label', '区間' + (index + 1) + ' ' + (side === 'left' ? '開始・時短抜け' : '終了・当たり'));
@@ -1283,9 +1305,8 @@ function renderRotSegments() {
 
 function updateRotSegmentTotals() {
   S.rotSegments.forEach((row, index) => {
-    const l = parseFloat(row.left), r = parseFloat(row.right);
     const diff = document.getElementById('rot-segment-diff-' + index);
-    if (diff) diff.textContent = '→ この区間: ' + (Number.isFinite(l) && Number.isFinite(r) && r >= l ? fmtN(r - l) : '—');
+    if (diff) diff.textContent = '→ この区間: ' + formatSegmentDiff(row.left, row.right);
   });
   const total = getSoKaiten();
   document.getElementById('disp-segment-sum').textContent = total > 0 ? fmtN(total) : '—';
