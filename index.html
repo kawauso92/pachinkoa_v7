@@ -314,11 +314,11 @@ select.input-field{cursor:pointer;appearance:none;background-image:url("data:ima
       <div class="input-grid">
         <div class="input-group" id="time-start-group">
           <div class="input-label">開始時間 <span class="badge-manual">入力</span></div>
-          <input class="input-field is-manual" type="time" id="in-time-start" oninput="recalc();save()">
+          <input class="input-field is-manual" type="time" id="in-time-start" oninput="onTimeInput(this)" onchange="onTimeInput(this)">
         </div>
         <div class="input-group" id="time-end-group">
           <div class="input-label">終了時間 <span class="badge-manual">入力</span></div>
-          <input class="input-field is-manual" type="time" id="in-time-end" oninput="recalc();save()">
+          <input class="input-field is-manual" type="time" id="in-time-end" oninput="onTimeInput(this)" onchange="onTimeInput(this)">
         </div>
         <div class="input-group">
           <div class="input-label">投資金額 <span class="badge-manual">入力</span></div>
@@ -516,7 +516,7 @@ select.input-field{cursor:pointer;appearance:none;background-image:url("data:ima
     <div class="section-header"><div class="section-label">セッション設定</div><div class="section-line"></div></div>
     <div class="setting-row">
       <div class="input-label" style="display:block;margin-bottom:6px;">日付</div>
-      <input class="input-field" type="date" id="in-date" oninput="save(); recalc(); triggerRuikeiSync();">
+      <input class="input-field" type="date" id="in-date" onfocus="fillDateIfEmpty(); recalc();" oninput="save(); recalc(); triggerRuikeiSync();">
     </div>
     <div class="setting-row">
       <div class="input-label" style="display:block;margin-bottom:6px;">店</div>
@@ -603,8 +603,8 @@ select.input-field{cursor:pointer;appearance:none;background-image:url("data:ima
       <div class="auto-calc-val" id="modal-auto-balls">0玉</div>
     </div>
     <div class="input-group" style="margin-bottom:14px;">
-      <div class="input-label">合計出玉（実際の値で上書き可） <span class="badge-manual">入力</span></div>
-      <input class="input-field is-manual" type="number" inputmode="numeric" placeholder="0" id="modal-balls">
+      <div class="input-label">合計出玉（実測） <span class="badge-manual">入力</span></div>
+      <input class="input-field is-manual" type="number" inputmode="numeric" placeholder="実測を入力" id="modal-balls">
     </div>
     <button class="modal-confirm-btn" id="modal-confirm-btn">確定</button>
   </div>
@@ -647,11 +647,24 @@ const S = {
 // =============================================
 // 初期化
 // =============================================
-window.addEventListener('DOMContentLoaded', async () => {
+function todayStr() {
   const t = new Date();
-  document.getElementById('in-date').value =
-    t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')+'-'+String(t.getDate()).padStart(2,'0');
+  return t.getFullYear() + '-' + String(t.getMonth() + 1).padStart(2, '0') + '-' + String(t.getDate()).padStart(2, '0');
+}
+function fillDateIfEmpty() {
+  const el = document.getElementById('in-date');
+  if (!el || el.value) return;
+  el.value = todayStr();
+  save();
+  triggerRuikeiSync();
+}
+function onTimeInput(el) {
+  if (el.value) fillDateIfEmpty();
+  recalc();
+  save();
+}
 
+window.addEventListener('DOMContentLoaded', async () => {
   // キャッシュがあれば即座に表示
   const cache = localStorage.getItem('masters_cache');
   if (cache) {
@@ -1112,7 +1125,6 @@ function updateModalBalls() {
     total += cnt * (parseInt(item.dataset.balls) || 0);
   });
   document.getElementById('modal-auto-balls').textContent = total.toLocaleString() + '玉';
-  if (total > 0) document.getElementById('modal-balls').value = total;
 }
 function confirmHit() {
   const balls = parseInt(document.getElementById('modal-balls').value) || 0;
@@ -1617,6 +1629,13 @@ async function doSend() {
 
   const date    = document.getElementById('in-date').value;
   if (!date)    { showAlert('日付を入力してください'); return; }
+  const tStart = document.getElementById('in-time-start').value;
+  const tEnd = document.getElementById('in-time-end').value;
+  const isTrial = S.kishu.name === '試しうち';
+  if (!isTrial) {
+    if (!tStart || !tEnd) { showAlert('開始時間と終了時間を入力してください'); return; }
+    if (tStart === tEnd) { showAlert('開始時間と終了時間が同じです'); return; }
+  }
 
   // 旧方式の累計が残っている場合だけ、一度オンラインで移行する。
   const rewardUchi = document.querySelector('#uchi-chips .chip.selected')?.textContent || '自分';
@@ -1636,15 +1655,12 @@ async function doSend() {
   const moratta       = parseFloat(document.getElementById('in-moratta').value)     || 0; // もらった玉
   const investBall    = investBallRaw + moratta; // もらった玉を投資玉に加算
   const recover       = recoverRaw + watashita;  // 渡した玉を回収玉に加算
-  const tStart     = document.getElementById('in-time-start').value;
-  const tEnd       = document.getElementById('in-time-end').value;
   const daiban     = document.getElementById('in-daiban').value || '';
   const eventName  = document.getElementById('in-event').value.trim();
   const memo       = document.getElementById('in-memo').value.trim();
   const kokan      = S.shop.kokan;
   const k          = S.kishu;
   const ratio      = S.ratio / 100;
-  const isTrial    = k.name === '試しうち'; // 試しうちモード
 
   // 打ち手取得
   const uchiEl = document.querySelector('#uchi-chips .chip.selected');
@@ -2077,16 +2093,15 @@ function loadData() {
     })) : [];
     updateRotationModeUI();
     renderRotSegments();
-    // date は初期化時に当日を設定済みのため復元しない（前日データが残ると誤表示になるため）
-    const ids = ['rotStart','rotEnd','tStart','tEnd','invest','investB','recover','watashita','moratta','hitStart','nodama','daiban','eventName','memo'];
+    const ids = ['date','rotStart','rotEnd','tStart','tEnd','invest','investB','recover','watashita','moratta','hitStart','nodama','daiban','eventName','memo'];
     const map = {
-      rotStart:'in-rot-start',rotEnd:'in-rot-end',tStart:'in-time-start',tEnd:'in-time-end',
+      date:'in-date',rotStart:'in-rot-start',rotEnd:'in-rot-end',tStart:'in-time-start',tEnd:'in-time-end',
       invest:'in-invest',investB:'in-invest-ball',recover:'in-recover',
       watashita:'in-watashita',moratta:'in-moratta',
       hitStart:'in-hit-start',nodama:'in-hit-nodama',daiban:'in-daiban',
       eventName:'in-event',memo:'in-memo'
     };
-    ids.forEach(k => { if (d[k]) { const e = document.getElementById(map[k]); if(e) e.value = d[k]; } });
+    ids.forEach(k => { if (d[k] !== undefined) { const e = document.getElementById(map[k]); if(e) e.value = d[k]; } });
 
     if (d.shop) {
       const s = SHOPS.find(x=>x.name===d.shop);
@@ -2122,17 +2137,16 @@ function loadData() {
 // =============================================
 // 送信後リロード（2台目引き継ぎ対応）
 // =============================================
-// 数値入力フィールドだけリセットし、日付・打ち手・店・機種は保持してリロード。
-// これにより2台目でも getRuikeiData(uchi, date) が正しく機能し、
-// 「前台引継」差玉が 0 にならない。
+// 日付・時間・数値入力をリセットし、打ち手・店・機種・イベント・持玉比率は保持。
+// 次の時間入力で日付が補完され、同じ日の累計を引き継ぐ。
 function afterSendReload() {
   try {
     const raw = localStorage.getItem('pachinkoLog_v5');
     const d   = raw ? JSON.parse(raw) : {};
-    // 数値入力・当たり履歴だけリセット（日付・打ち手・店・機種・持玉比率は保持）
+    // 日付・時間・数値入力・当たり履歴をリセット
     ['rotStart','rotEnd','tStart','tEnd',
      'invest','investB','recover','watashita','moratta',
-     'hitStart','nodama','daiban'].forEach(k => { d[k] = ''; });
+     'hitStart','nodama','daiban','date'].forEach(k => { d[k] = ''; });
     d.memo = '';
     d.hits = [];
     d.rotSegments = [];
@@ -2155,7 +2169,7 @@ function doReset() {
       S.rotationMode = 'simple'; S.rotSegments = [];
       updateRotationModeUI();
       renderRotSegments();
-      ['in-rot-start','in-rot-end','in-time-start','in-time-end',
+      ['in-date','in-rot-start','in-rot-end','in-time-start','in-time-end',
        'in-invest','in-invest-ball','in-recover',
        'in-watashita','in-moratta',
        'in-hit-start','in-hit-nodama','in-memo'].forEach(id => {
