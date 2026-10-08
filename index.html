@@ -75,6 +75,8 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
 .badge-auto{font-size:8px;padding:1px 5px;border-radius:3px;background:rgba(57,255,110,0.12);color:var(--green);border:1px solid rgba(57,255,110,0.3);letter-spacing:0;font-family:'JetBrains Mono',monospace;}
 .input-field.is-manual{border-color:rgba(0,212,255,0.35);}
 .input-field.is-manual:focus{border-color:var(--accent);box-shadow:0 0 0 2px rgba(0,212,255,0.15);}
+/* 終了時貯玉が開始時貯玉より多いときの補足（通常時は非表示） */
+.stock-clamp-note{display:none;font-size:9px;color:var(--warn);font-family:'JetBrains Mono',monospace;letter-spacing:0;line-height:1.4;}
 .auto-display{background:rgba(57,255,110,0.05);border:1px solid rgba(57,255,110,0.2);border-radius:var(--radius-sm);padding:9px 10px;font-size:16px;font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--green);width:100%;}
 select.input-field{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%238899aa' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:28px;}
 .cur-wrap{position:relative;}
@@ -114,6 +116,10 @@ select.input-field{cursor:pointer;appearance:none;background-image:url("data:ima
 /* Modal */
 .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:300;backdrop-filter:blur(4px);align-items:flex-end;justify-content:center;}
 .modal-overlay.show{display:flex;}
+/* 確認ダイアログは当たりモーダルより前面に出す（後ろに隠れて古い警告が残る不具合の対策） */
+#dialogModal{z-index:400;}
+/* 合言葉入力は最前面 */
+#tokenModal{z-index:500;}
 .modal{background:var(--surface);border:1px solid var(--border);border-top:2px solid var(--accent);border-radius:var(--radius) var(--radius) 0 0;padding:20px 16px 36px;width:100%;max-width:430px;max-height:88vh;overflow-y:auto;position:relative;}
 .modal-title{font-family:'Rajdhani',sans-serif;font-size:16px;font-weight:700;letter-spacing:2px;color:var(--accent);margin-bottom:4px;}
 .modal-subtitle{font-size:11px;color:var(--text2);margin-bottom:16px;}
@@ -326,8 +332,17 @@ select.input-field{cursor:pointer;appearance:none;background-image:url("data:ima
           <input class="input-field is-manual" type="number" inputmode="numeric" placeholder="0" id="in-invest" oninput="recalc();save()"></div>
         </div>
         <div class="input-group">
-          <div class="input-label">投資玉数 <span class="badge-manual">入力</span></div>
-          <input class="input-field is-manual" type="number" inputmode="numeric" placeholder="0" id="in-invest-ball" oninput="recalc();save()">
+          <div class="input-label">投資玉数 <span id="invest-ball-badge" class="badge-manual">入力</span></div>
+          <input class="input-field is-manual" type="number" inputmode="numeric" placeholder="0" id="in-invest-ball" oninput="onInvestBallInput()">
+        </div>
+        <div class="input-group">
+          <div class="input-label">開始時貯玉 <span class="badge-manual">入力</span></div>
+          <input class="input-field is-manual" type="number" inputmode="numeric" placeholder="0" id="in-stock-start" oninput="onStockInput()">
+        </div>
+        <div class="input-group">
+          <div class="input-label">投資終了時貯玉 <span class="badge-manual">入力</span></div>
+          <input class="input-field is-manual" type="number" inputmode="numeric" placeholder="0" id="in-stock-end" oninput="onStockInput()">
+          <div class="stock-clamp-note" id="stock-clamp-note">投資終了時貯玉が開始時貯玉より多いため0にしました</div>
         </div>
         <div class="input-group">
           <div class="input-label">回収玉数 <span class="badge-manual">入力</span></div>
@@ -591,6 +606,19 @@ select.input-field{cursor:pointer;appearance:none;background-image:url("data:ima
   </div>
 </div>
 
+<!-- 合言葉入力ダイアログ（値はDOMに残さない） -->
+<div class="modal-overlay" id="tokenModal">
+  <div class="modal" style="max-height:auto;">
+    <div class="modal-title" id="token-title">合言葉</div>
+    <div style="font-size:13px;color:var(--text2);margin:12px 0 12px;" id="token-msg">合言葉を入力してください</div>
+    <input class="input-field is-manual" type="password" id="token-input" placeholder="合言葉" autocomplete="off" autocapitalize="off" spellcheck="false" style="margin-bottom:16px;">
+    <div style="display:flex;gap:8px;">
+      <button id="token-cancel" style="flex:1;background:var(--surface3);border:1px solid var(--border);color:var(--text2);padding:12px;border-radius:var(--radius-sm);font-family:'Rajdhani',sans-serif;font-weight:700;font-size:13px;cursor:pointer;">キャンセル</button>
+      <button id="token-ok" style="flex:1;background:linear-gradient(135deg,rgba(0,212,255,0.2),rgba(0,212,255,0.05));border:1px solid rgba(0,212,255,0.4);border-radius:var(--radius-sm);color:var(--accent);padding:12px;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:13px;cursor:pointer;">保存</button>
+    </div>
+  </div>
+</div>
+
 <!-- 当たりモーダル -->
 <div class="modal-overlay" id="hitModal">
   <div class="modal">
@@ -626,6 +654,118 @@ select.input-field{cursor:pointer;appearance:none;background-image:url("data:ima
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbzFtMJ354oeVAeNVTGLckNVXX9I1URLJTrlMTafDNO6UPOf7yo3bnaac_yPKYV8hVv8/exec';
 
 // =============================================
+// 合言葉（GASへの全リクエストに付与する）
+// 値はlocalStorageにのみ保存し、ソース・ログ・画面には出さない。
+// =============================================
+const APP_TOKEN_KEY = 'appToken';
+
+// localStorage不可の環境でも動くよう全てtry/catchする
+function readAppToken() {
+  try { return localStorage.getItem(APP_TOKEN_KEY) || ''; } catch(e) { return ''; }
+}
+function saveAppToken(token) {
+  try { localStorage.setItem(APP_TOKEN_KEY, token); } catch(e) { /* 保存不可なら毎回入力 */ }
+}
+function clearAppToken() {
+  try { localStorage.removeItem(APP_TOKEN_KEY); } catch(e) {}
+}
+
+// GASのURLかどうか（GAS以外のURLにはtokenを付けない）
+function isGasUrl(url) {
+  return typeof url === 'string' && url.indexOf(GAS_URL) === 0;
+}
+
+// 合言葉の入力ダイアログを出して値を返す（キャンセル時はnull）
+function showTokenPrompt(message) {
+  return new Promise(resolve => {
+    const modal    = document.getElementById('tokenModal');
+    const input    = document.getElementById('token-input');
+    const okBtn    = document.getElementById('token-ok');
+    const cancelBtn = document.getElementById('token-cancel');
+    document.getElementById('token-msg').textContent = message || '合言葉を入力してください';
+    input.value = '';
+    modal.classList.add('show');
+    setTimeout(() => { try { input.focus(); } catch(e) {} }, 50);
+    const finish = (val) => {
+      input.value = ''; // 入力値はDOMに残さない
+      modal.classList.remove('show');
+      okBtn.onclick = null;
+      cancelBtn.onclick = null;
+      input.onkeydown = null;
+      resolve(val);
+    };
+    okBtn.onclick = () => finish(input.value ? input.value : null);
+    cancelBtn.onclick = () => finish(null);
+    input.onkeydown = (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); finish(input.value ? input.value : null); }
+    };
+  });
+}
+
+// 保存済みの合言葉を返す。無ければ入力ダイアログを出して保存する。
+// 保存できない環境では毎回入力になるが動作は継続する。
+let _tokenPromptPromise = null;
+function ensureAppToken(forcePrompt) {
+  if (!forcePrompt) {
+    const saved = readAppToken();
+    if (saved) return Promise.resolve(saved);
+  }
+  if (_tokenPromptPromise) return _tokenPromptPromise; // 同時要求は1回にまとめる
+  _tokenPromptPromise = (async () => {
+    try {
+      const msg = forcePrompt
+        ? '合言葉が確認できませんでした。もう一度入力してください'
+        : '合言葉を入力してください（この端末に保存されます）';
+      const v = await showTokenPrompt(msg);
+      if (v) saveAppToken(v);
+      return v || '';
+    } finally {
+      _tokenPromptPromise = null;
+    }
+  })();
+  return _tokenPromptPromise;
+}
+
+// GASへの通信をラップする。GETは?token=、POSTは本文JSONにtokenを付与。
+// unauthorizedなら保存済みを消して再入力し、1回だけ再試行する。
+async function gasFetch(url, options, retried) {
+  const opt = Object.assign({}, options);
+  const isGas = isGasUrl(url);
+  let token = '';
+  if (isGas) {
+    token = readAppToken();
+    if (!token) token = await ensureAppToken(false);
+  }
+  let reqUrl = url;
+  if (isGas) {
+    const isPost = opt.method && opt.method.toUpperCase() !== 'GET';
+    if (isPost && typeof opt.body === 'string') {
+      // POST本文にtokenキーを足すだけ（既存のデータ形式は変えない）
+      try {
+        const bodyObj = JSON.parse(opt.body);
+        if (bodyObj && typeof bodyObj === 'object' && token) bodyObj.token = token;
+        opt.body = JSON.stringify(bodyObj);
+      } catch(e) { /* 本文がJSONでなければそのまま送る */ }
+    } else if (token) {
+      // GETはクエリに追加
+      reqUrl = url + (url.indexOf('?') >= 0 ? '&' : '?') + 'token=' + encodeURIComponent(token);
+    }
+  }
+
+  const res = await fetch(reqUrl, opt);
+
+  // unauthorized かどうかを確認する（本文はコピーで読む）
+  let data = null;
+  try { data = await res.clone().json(); } catch(e) {}
+  if (data && data.success === false && data.error === 'unauthorized' && !retried) {
+    clearAppToken();
+    await ensureAppToken(true);
+    return gasFetch(url, options, true);
+  }
+  return res;
+}
+
+// =============================================
 // マスタデータ（GASから取得）
 // =============================================
 let SHOPS = [];
@@ -642,6 +782,7 @@ const S = {
   hits: [],
   rotationMode: 'simple',
   rotSegments: [],
+  investBallSource: null, // 'stock'=開始/終了貯玉から自動計算, 'direct'=投資玉数を直接入力
 };
 
 // =============================================
@@ -660,6 +801,76 @@ function fillDateIfEmpty() {
 }
 function onTimeInput(el) {
   if (el.value) fillDateIfEmpty();
+  recalc();
+  save();
+}
+
+// 開始時貯玉・終了時貯玉として有効な数値か（未入力・空欄・非数は false）
+function isValidStockValue(v) {
+  return v !== '' && v !== null && v !== undefined && Number.isFinite(Number(v));
+}
+
+// 開始時貯玉・終了時貯玉から投資玉数を計算する純関数。
+// 両方とも有効な数値のときだけ「開始 − 終了」を返す（未入力・非数はnull）。
+// 終了時貯玉の方が多い（差が負）ときは 0 として扱う。
+function calcInvestBallFromStock(startVal, endVal) {
+  if (!isValidStockValue(startVal) || !isValidStockValue(endVal)) return null;
+  return Math.max(0, Number(startVal) - Number(endVal));
+}
+
+// 終了時貯玉が開始時貯玉より多く、0に補正されたか（補足表示の判定）を返す純関数。
+function isInvestBallClampedFromStock(startVal, endVal) {
+  if (!isValidStockValue(startVal) || !isValidStockValue(endVal)) return false;
+  return Number(startVal) - Number(endVal) < 0;
+}
+
+// 投資玉数が開始/終了時貯玉からの自動計算で決まっているかを返す純関数。
+// 最後の編集が貯玉欄（stock）で、かつ両方が有効な数値のときだけ true（片方だけなら false）。
+function isInvestBallAuto(source, startVal, endVal) {
+  return source === 'stock' && calcInvestBallFromStock(startVal, endVal) !== null;
+}
+
+// 投資玉数のバッジ表示を更新（自動計算／直接入力の区別）
+function updateInvestBallBadge() {
+  const b = document.getElementById('invest-ball-badge');
+  if (!b) return;
+  const auto = isInvestBallAuto(
+    S.investBallSource,
+    document.getElementById('in-stock-start')?.value,
+    document.getElementById('in-stock-end')?.value
+  );
+  b.textContent = auto ? 'AUTO' : '入力';
+  b.className = auto ? 'badge-auto' : 'badge-manual';
+}
+
+// 終了時貯玉が開始時貯玉より多いときの補足表示を切り替える（通常に戻れば消す）
+function updateStockClampNote() {
+  const el = document.getElementById('stock-clamp-note');
+  if (!el) return;
+  el.style.display = isInvestBallClampedFromStock(
+    document.getElementById('in-stock-start')?.value,
+    document.getElementById('in-stock-end')?.value
+  ) ? 'block' : 'none';
+}
+
+// 貯玉欄の編集時：両方入力されていれば投資玉数へ差を反映（最後に編集した方を優先）
+function onStockInput() {
+  S.investBallSource = 'stock';
+  const diff = calcInvestBallFromStock(
+    document.getElementById('in-stock-start').value,
+    document.getElementById('in-stock-end').value
+  );
+  if (diff !== null) document.getElementById('in-invest-ball').value = diff;
+  updateInvestBallBadge();
+  updateStockClampNote();
+  recalc();
+  save();
+}
+
+// 投資玉数を直接編集したとき：直接入力を優先する
+function onInvestBallInput() {
+  S.investBallSource = 'direct';
+  updateInvestBallBadge();
   recalc();
   save();
 }
@@ -787,7 +998,7 @@ function showLoading(show) {
 // =============================================
 async function loadMasters() {
   try {
-    const res  = await fetch(GAS_URL + '?action=masters', {redirect: 'follow'});
+    const res  = await gasFetch(GAS_URL + '?action=masters', {redirect: 'follow'});
     const data = await res.json();
     if (data.success) {
       SHOPS = data.shops  || [];
@@ -874,6 +1085,11 @@ function showDialog(msg, onOk, okLabel, isAlert) {
 }
 function showAlert(msg) { showDialog(msg, null, 'OK', true); }
 function showConfirm(msg, onOk) { showDialog(msg, onOk, '実行', false); }
+// 確認ダイアログを閉じる（古い警告状態を残さない）
+function hideDialog() {
+  const m = document.getElementById('dialogModal');
+  if (m) m.classList.remove('show');
+}
 function switchTab(name) {
   ['main','hit','border','setting'].forEach(t => {
     document.getElementById('tab-'+t).classList.toggle('active', t===name);
@@ -1083,11 +1299,14 @@ function updateHeader() {
 // =============================================
 function openModal() {
   if (!S.kishu) { showAlert('設定タブで機種を選択してください'); return; }
+  hideDialog(); // 前回の警告が残っていれば解除
   buildRoundInputs();
   document.getElementById('hitModal').classList.add('show');
 }
 function closeModal() {
   document.getElementById('hitModal').classList.remove('show');
+  // 当たりモーダルを閉じる際、未入力警告が残っていれば解除する
+  hideDialog();
 }
 function buildRoundInputs() {
   const grid = document.getElementById('round-input-grid');
@@ -1139,6 +1358,8 @@ function confirmHit() {
     });
   });
   if (rounds.length === 0) { showAlert('ラウンドを選択してください'); return; }
+  // 入力が揃ったら未入力警告を解除する（確定後に古い警告を出さない）
+  hideDialog();
   S.hits.push({ balls, rounds });
   renderHitList();
   closeModal();
@@ -1818,7 +2039,7 @@ async function doSend() {
           '| mochiTama:', mochiTama, 'mochiTotal:', mochiTotal,
           '| soToushiTama:', soToushiTama, '→ mochiRatio:', mochiRatioSend);
 
-        const res = await fetch(GAS_URL, {
+        const res = await gasFetch(GAS_URL, {
           method: 'POST',
           redirect: 'follow',
           headers: {'Content-Type': 'text/plain'},
@@ -1930,7 +2151,7 @@ async function syncRuikeiFromGAS() {
   const cacheKey = 'ruikei_v7_' + date + '_' + uchi;
   const beforeSync = localStorage.getItem(cacheKey);
   try {
-    const res  = await fetch(GAS_URL + '?action=records&limit=200', {redirect: 'follow'});
+    const res  = await gasFetch(GAS_URL + '?action=records&limit=200', {redirect: 'follow'});
     const data = await res.json();
     if (!data.success || !Array.isArray(data.records)) return;
     // 同日・同打ち手のレコードだけ絞り込んで累計を再計算
@@ -2059,6 +2280,9 @@ function save() {
       tEnd:     document.getElementById('in-time-end').value,
       invest:     document.getElementById('in-invest').value,
       investB:    document.getElementById('in-invest-ball').value,
+      stockStart: document.getElementById('in-stock-start').value,
+      stockEnd:   document.getElementById('in-stock-end').value,
+      investBallSource: S.investBallSource,
       recover:    document.getElementById('in-recover').value,
       watashita:  document.getElementById('in-watashita').value,
       moratta:    document.getElementById('in-moratta').value,
@@ -2093,15 +2317,18 @@ function loadData() {
     })) : [];
     updateRotationModeUI();
     renderRotSegments();
-    const ids = ['date','rotStart','rotEnd','tStart','tEnd','invest','investB','recover','watashita','moratta','hitStart','nodama','daiban','eventName','memo'];
+    const ids = ['date','rotStart','rotEnd','tStart','tEnd','invest','investB','stockStart','stockEnd','recover','watashita','moratta','hitStart','nodama','daiban','eventName','memo'];
     const map = {
       date:'in-date',rotStart:'in-rot-start',rotEnd:'in-rot-end',tStart:'in-time-start',tEnd:'in-time-end',
-      invest:'in-invest',investB:'in-invest-ball',recover:'in-recover',
+      invest:'in-invest',investB:'in-invest-ball',stockStart:'in-stock-start',stockEnd:'in-stock-end',recover:'in-recover',
       watashita:'in-watashita',moratta:'in-moratta',
       hitStart:'in-hit-start',nodama:'in-hit-nodama',daiban:'in-daiban',
       eventName:'in-event',memo:'in-memo'
     };
     ids.forEach(k => { if (d[k] !== undefined) { const e = document.getElementById(map[k]); if(e) e.value = d[k]; } });
+    if (d.investBallSource) S.investBallSource = d.investBallSource;
+    updateInvestBallBadge();
+    updateStockClampNote();
 
     if (d.shop) {
       const s = SHOPS.find(x=>x.name===d.shop);
@@ -2145,8 +2372,9 @@ function afterSendReload() {
     const d   = raw ? JSON.parse(raw) : {};
     // 日付・時間・数値入力・当たり履歴をリセット
     ['rotStart','rotEnd','tStart','tEnd',
-     'invest','investB','recover','watashita','moratta',
+     'invest','investB','stockStart','stockEnd','recover','watashita','moratta',
      'hitStart','nodama','daiban','date'].forEach(k => { d[k] = ''; });
+    d.investBallSource = null;
     d.memo = '';
     d.hits = [];
     d.rotSegments = [];
@@ -2167,14 +2395,17 @@ function doReset() {
       localStorage.removeItem('pachinkoLog_v5');
       S.shop = null; S.kishu = null; S.ratio = 100; S.hits = [];
       S.rotationMode = 'simple'; S.rotSegments = [];
+      S.investBallSource = null;
       updateRotationModeUI();
       renderRotSegments();
       ['in-date','in-rot-start','in-rot-end','in-time-start','in-time-end',
-       'in-invest','in-invest-ball','in-recover',
+       'in-invest','in-invest-ball','in-stock-start','in-stock-end','in-recover',
        'in-watashita','in-moratta',
        'in-hit-start','in-hit-nodama','in-memo'].forEach(id => {
         const e = document.getElementById(id); if(e) e.value='';
       });
+      updateInvestBallBadge();
+      updateStockClampNote();
       document.getElementById('in-shop').value = '';
       document.getElementById('in-kishu').value = '';
       document.getElementById('in-event').value = eventValue;
