@@ -373,6 +373,7 @@ select.input-field{cursor:pointer;appearance:none;background-image:url("data:ima
             <th style="padding:4px 2px;text-align:center;font-weight:500;">現金投資(円)</th>
             <th style="padding:4px 2px;text-align:center;font-weight:500;">貯玉投資(玉)</th>
             <th style="padding:4px 2px;text-align:center;font-weight:500;">回収玉</th>
+            <th style="padding:4px 2px;text-align:center;font-weight:500;">回収(現金円)</th>
           </tr>
         </thead>
         <tbody>
@@ -381,15 +382,52 @@ select.input-field{cursor:pointer;appearance:none;background-image:url("data:ima
             <td style="padding:2px 3px;"><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-jibun-genkin"  oninput="calcSeisan()" style="font-size:13px;padding:6px 4px;"></td>
             <td style="padding:2px 3px;"><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-jibun-tama"    oninput="calcSeisan()" style="font-size:13px;padding:6px 4px;"></td>
             <td style="padding:2px 3px;"><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-jibun-recover" oninput="calcSeisan()" style="font-size:13px;padding:6px 4px;"></td>
+            <td style="padding:2px 3px;"><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-jibun-recover-cash" oninput="calcSeisan()" style="font-size:13px;padding:6px 4px;"></td>
           </tr>
           <tr>
             <td style="padding:4px 6px;color:var(--text2);">相手</td>
             <td style="padding:2px 3px;"><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-aite-genkin"  oninput="calcSeisan()" style="font-size:13px;padding:6px 4px;"></td>
             <td style="padding:2px 3px;"><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-aite-tama"    oninput="calcSeisan()" style="font-size:13px;padding:6px 4px;"></td>
             <td style="padding:2px 3px;"><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-aite-recover" oninput="calcSeisan()" style="font-size:13px;padding:6px 4px;"></td>
+            <td style="padding:2px 3px;"><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-aite-recover-cash" oninput="calcSeisan()" style="font-size:13px;padding:6px 4px;"></td>
           </tr>
         </tbody>
       </table>
+      <!-- ===== スロット（メダル）清算 ===== -->
+      <div style="font-size:12px;font-weight:600;color:var(--text2);margin:12px 0 6px;">スロット（メダル）</div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+        <span style="color:var(--text2);font-size:13px;">交換率</span>
+        <input class="input-field" type="number" inputmode="decimal" id="seisan-slot-rate" placeholder="5.6" style="width:72px;padding:6px 8px;" oninput="calcSeisan()">
+        <span style="color:var(--text2);font-size:13px;">100円あたり枚数</span>
+      </div>
+      <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:10px;">
+        <thead>
+          <tr style="color:var(--text2);">
+            <th style="padding:4px 6px;text-align:left;width:48px;"></th>
+            <th style="padding:4px 2px;text-align:center;font-weight:500;">現金投資(円)</th>
+            <th style="padding:4px 2px;text-align:center;font-weight:500;">貯メダル投資(枚)</th>
+            <th style="padding:4px 2px;text-align:center;font-weight:500;">回収(枚)</th>
+            <th style="padding:4px 2px;text-align:center;font-weight:500;">回収(現金円)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style="padding:4px 6px;color:var(--text2);">自分</td>
+            <td style="padding:2px 3px;"><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-slot-jibun-genkin"  oninput="calcSeisan()" style="font-size:13px;padding:6px 4px;"></td>
+            <td style="padding:2px 3px;"><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-slot-jibun-medal"    oninput="calcSeisan()" style="font-size:13px;padding:6px 4px;"></td>
+            <td style="padding:2px 3px;"><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-slot-jibun-recover" oninput="calcSeisan()" style="font-size:13px;padding:6px 4px;"></td>
+            <td style="padding:2px 3px;"><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-slot-jibun-recover-cash" oninput="calcSeisan()" style="font-size:13px;padding:6px 4px;"></td>
+          </tr>
+          <tr>
+            <td style="padding:4px 6px;color:var(--text2);">相手</td>
+            <td style="padding:2px 3px;"><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-slot-aite-genkin"  oninput="calcSeisan()" style="font-size:13px;padding:6px 4px;"></td>
+            <td style="padding:2px 3px;"><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-slot-aite-medal"    oninput="calcSeisan()" style="font-size:13px;padding:6px 4px;"></td>
+            <td style="padding:2px 3px;"><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-slot-aite-recover" oninput="calcSeisan()" style="font-size:13px;padding:6px 4px;"></td>
+            <td style="padding:2px 3px;"><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-slot-aite-recover-cash" oninput="calcSeisan()" style="font-size:13px;padding:6px 4px;"></td>
+          </tr>
+        </tbody>
+      </table>
+      <div id="seisan-warning" style="display:none;margin-bottom:10px;padding:8px 12px;background:rgba(255,204,0,0.08);border:1px solid rgba(255,204,0,0.35);border-radius:6px;color:var(--warn);font-size:12px;line-height:1.4;"></div>
       <div id="seisan-result" style="padding:10px;background:rgba(255,255,255,0.04);border-radius:8px;font-size:13px;display:none;">
         <div style="display:grid;grid-template-columns:1fr auto;gap:4px 12px;align-items:baseline;">
           <span style="color:var(--text2);">合算収支</span>       <span id="seisan-gassan"      style="font-family:'JetBrains Mono',monospace;font-weight:700;text-align:right;">—</span>
@@ -1213,45 +1251,162 @@ function updateNoriuchiMode() {
   if (sec) sec.style.display = isNori ? '' : 'none';
 }
 
-// 清算計算機：リアルタイム計算
+// ==== 清算計算 純関数（ここから） ====
+// DOMに依存しない計算ロジック。Nodeテストから抽出して使用する。
+// 空欄・数値以外は null（未入力）として扱う
+function seisanNum(v) {
+  if (v === null || v === undefined) return null;
+  const s = String(v).trim();
+  if (s === '') return null;
+  const n = Number(s);
+  return Number.isFinite(n) ? n : null;
+}
+
+// 自分/相手それぞれの入力グループに入力があるか（0も入力として扱う）
+function seisanHasAny(group) {
+  if (!group) return false;
+  const fields = ['genkin', 'stock', 'recover', 'recoverCash'];
+  const has = (person) => !!person && fields.some((f) => seisanNum(person[f]) !== null);
+  return has(group.jibun) || has(group.aite);
+}
+
+// 収支計算：rate は100円あたりの玉/枚数
+// 収支 = 回収(玉/枚)×(100/rate) + 回収現金 − 現金投資 − 貯玉/貯メダル投資×(100/rate)
+function seisanKosshi(rate, genkin, stock, recover, recoverCash) {
+  const toYen = (u) => u / rate * 100;
+  return toYen(recover) + recoverCash - genkin - toYen(stock);
+}
+
+// 自分/相手の収支から精算サマリを作る
+function seisanSummary(jKosshi, aKosshi, rate) {
+  const gassan = jKosshi + aKosshi;
+  const hitori = gassan / 2;
+  const seisan = jKosshi - hitori; // 負=相手→自分 / 正=自分→相手
+  return {
+    jKosshi, aKosshi, gassan, hitori, seisan,
+    seisanYen: Math.abs(Math.round(seisan)),
+    direction: seisan <= 0 ? '相手→自分' : '自分→相手',
+    rate,
+  };
+}
+
+// 清算計算の本体（純関数）
+// input: { pachinko:{rate,jibun,aite}, slot:{rate,jibun,aite} }
+// 戻り値: { mode:'none'|'pachinko'|'slot'|'both', warning, pachinko, slot, combined }
+function computeSeisan(input) {
+  const p = (input && input.pachinko) || {};
+  const s = (input && input.slot) || {};
+  const num = (v) => (v === null || v === undefined || Number.isNaN(v) ? 0 : v);
+  const jy = (person, key) => num(seisanNum((person || {})[key]));
+
+  const out = { mode: 'none', warning: null, pachinko: null, slot: null, combined: null };
+
+  // --- パチンコ：既存仕様を維持（空欄/0/数値以外は交換率28へフォールバック） ---
+  const pRateRaw = seisanNum(p.rate);
+  const pHas = (p.hasInput !== undefined) ? !!p.hasInput : seisanHasAny(p);
+  if (pHas) {
+    const rate = (pRateRaw === null || pRateRaw === 0) ? 28 : pRateRaw;
+    const jK = seisanKosshi(rate, jy(p.jibun, 'genkin'), jy(p.jibun, 'stock'), jy(p.jibun, 'recover'), jy(p.jibun, 'recoverCash'));
+    const aK = seisanKosshi(rate, jy(p.aite, 'genkin'), jy(p.aite, 'stock'), jy(p.aite, 'recover'), jy(p.aite, 'recoverCash'));
+    out.pachinko = seisanSummary(jK, aK, rate);
+  }
+
+  // --- スロット：交換率は100円あたり枚数。空欄/0以下/非数なら計算しない ---
+  const sRate = seisanNum(s.rate);
+  const sRateOk = sRate !== null && sRate > 0;
+  const sHas = (s.hasInput !== undefined) ? !!s.hasInput : seisanHasAny(s);
+  if (sHas) {
+    if (!sRateOk) {
+      out.warning = 'スロットの交換率（100円あたり枚数）が未入力または不正のため計算できません。0より大きい数値を入力してください。';
+    } else {
+      const jK = seisanKosshi(sRate, jy(s.jibun, 'genkin'), jy(s.jibun, 'stock'), jy(s.jibun, 'recover'), jy(s.jibun, 'recoverCash'));
+      const aK = seisanKosshi(sRate, jy(s.aite, 'genkin'), jy(s.aite, 'stock'), jy(s.aite, 'recover'), jy(s.aite, 'recoverCash'));
+      out.slot = seisanSummary(jK, aK, sRate);
+    }
+  }
+
+  // --- 合算：両方に有効な入力があるときだけ表示 ---
+  if (out.pachinko && out.slot) {
+    out.mode = 'both';
+    out.combined = seisanSummary(
+      out.pachinko.jKosshi + out.slot.jKosshi,
+      out.pachinko.aKosshi + out.slot.aKosshi,
+      null
+    );
+  } else if (out.pachinko) {
+    out.mode = 'pachinko';
+  } else if (out.slot) {
+    out.mode = 'slot';
+  }
+  return out;
+}
+// ==== 清算計算 純関数（ここまで） ====
+
+// 清算計算機：DOMから入力を読み取り計算・描画
 function calcSeisan() {
-  const kokan   = parseFloat(document.getElementById('seisan-kokan').value) || 28;
-  const jGenkin = parseFloat(document.getElementById('seisan-jibun-genkin').value)  || 0;
-  const jTama   = parseFloat(document.getElementById('seisan-jibun-tama').value)    || 0;
-  const jRecover= parseFloat(document.getElementById('seisan-jibun-recover').value) || 0;
-  const aGenkin = parseFloat(document.getElementById('seisan-aite-genkin').value)   || 0;
-  const aTama   = parseFloat(document.getElementById('seisan-aite-tama').value)     || 0;
-  const aRecover= parseFloat(document.getElementById('seisan-aite-recover').value)  || 0;
+  const val = (id) => { const e = document.getElementById(id); return e ? e.value : ''; };
+  const input = {
+    pachinko: {
+      rate: val('seisan-kokan'),
+      jibun: { genkin: val('seisan-jibun-genkin'), stock: val('seisan-jibun-tama'), recover: val('seisan-jibun-recover'), recoverCash: val('seisan-jibun-recover-cash') },
+      aite:  { genkin: val('seisan-aite-genkin'),  stock: val('seisan-aite-tama'),  recover: val('seisan-aite-recover'),  recoverCash: val('seisan-aite-recover-cash') },
+    },
+    slot: {
+      rate: val('seisan-slot-rate'),
+      jibun: { genkin: val('seisan-slot-jibun-genkin'), stock: val('seisan-slot-jibun-medal'), recover: val('seisan-slot-jibun-recover'), recoverCash: val('seisan-slot-jibun-recover-cash') },
+      aite:  { genkin: val('seisan-slot-aite-genkin'),  stock: val('seisan-slot-aite-medal'),  recover: val('seisan-slot-aite-recover'),  recoverCash: val('seisan-slot-aite-recover-cash') },
+    },
+  };
+  renderSeisan(computeSeisan(input));
+}
 
-  const ballToYen = (balls) => balls / kokan * 100;
-  const calcK     = (genkin, tama, recover) => ballToYen(recover) - ballToYen(tama) - genkin;
+// 清算計算機：結果を画面へ表示
+function renderSeisan(r) {
+  const warnEl = document.getElementById('seisan-warning');
+  if (warnEl) {
+    if (r.warning) { warnEl.textContent = '⚠️ ' + r.warning; warnEl.style.display = ''; }
+    else { warnEl.textContent = ''; warnEl.style.display = 'none'; }
+  }
 
-  const jKosshi = calcK(jGenkin, jTama, jRecover);
-  const aKosshi = calcK(aGenkin, aTama, aRecover);
-  const gassan  = jKosshi + aKosshi;
-  const hitori  = gassan / 2;
-  const seisan  = jKosshi - hitori; // 負 = 自分が損している = 相手→自分へ支払い / 正 = 自分が得している = 自分→相手へ支払い
-  const seisanYen  = Math.abs(Math.round(seisan));
-  const seisanTama = Math.round(seisanYen / 100 * kokan);
-  const direction  = seisan <= 0 ? '相手→自分' : '自分→相手';
+  // 表示対象：両方あれば合算、片方だけならその片方、未入力はゼロ表示（従来踏襲）
+  let disp;
+  if (r.mode === 'both' && r.combined) disp = r.combined;
+  else if (r.mode === 'slot' && r.slot) disp = r.slot;
+  else if (r.mode === 'pachinko' && r.pachinko) disp = r.pachinko;
+  else disp = { jKosshi: 0, aKosshi: 0, gassan: 0, hitori: 0, seisan: 0, seisanYen: 0, direction: '相手→自分' };
 
-  const result = document.getElementById('seisan-result');
-  result.style.display = '';
-  const fmtY  = (v) => { const r = Math.round(v); return (r >= 0 ? '+' : '') + r.toLocaleString('ja-JP') + '円'; };
-  const clsY  = (v) => v >= 0 ? 'pos' : 'neg';
+  const fmtY = (v) => { const rr = Math.round(v); return (rr >= 0 ? '+' : '') + rr.toLocaleString('ja-JP') + '円'; };
+  const clsY = (v) => v >= 0 ? 'pos' : 'neg';
   const setEl = (id, text, cls) => {
     const e = document.getElementById(id);
     if (!e) return;
     e.textContent = text;
     if (cls) e.className = cls;
   };
-  setEl('seisan-gassan',      fmtY(gassan),  clsY(gassan));
-  setEl('seisan-hitori',      fmtY(hitori),  clsY(hitori));
-  setEl('seisan-jibun-kosshi',fmtY(jKosshi), clsY(jKosshi));
-  setEl('seisan-aite-kosshi', fmtY(aKosshi), clsY(aKosshi));
-  setEl('seisan-direction',
-    `清算: ${direction} へ ${seisanYen.toLocaleString('ja-JP')}円 / ${seisanTama.toLocaleString('ja-JP')}玉`
-  );
+  setEl('seisan-gassan',       fmtY(disp.gassan),  clsY(disp.gassan));
+  setEl('seisan-hitori',       fmtY(disp.hitori),  clsY(disp.hitori));
+  setEl('seisan-jibun-kosshi', fmtY(disp.jKosshi), clsY(disp.jKosshi));
+  setEl('seisan-aite-kosshi',  fmtY(disp.aKosshi), clsY(disp.aKosshi));
+
+  // 玉/枚への換算は各交換率で表示
+  const pRate = r.pachinko ? r.pachinko.rate : 28;
+  const pTama = Math.round(disp.seisanYen / 100 * pRate);
+  const yenStr = disp.seisanYen.toLocaleString('ja-JP');
+  let line;
+  if (r.mode === 'both' && r.slot) {
+    const sCoins = Math.round(disp.seisanYen / 100 * r.slot.rate);
+    line = `清算: ${disp.direction} へ ${yenStr}円（パチンコ ${pTama.toLocaleString('ja-JP')}玉 / スロット ${sCoins.toLocaleString('ja-JP')}枚）`;
+  } else if (r.mode === 'slot' && r.slot) {
+    const sCoins = Math.round(disp.seisanYen / 100 * r.slot.rate);
+    line = `清算: ${disp.direction} へ ${yenStr}円 / ${sCoins.toLocaleString('ja-JP')}枚`;
+  } else {
+    // パチンコのみ・未入力：従来と同じ表示
+    line = `清算: ${disp.direction} へ ${yenStr}円 / ${pTama.toLocaleString('ja-JP')}玉`;
+  }
+  setEl('seisan-direction', line);
+
+  const result = document.getElementById('seisan-result');
+  if (result) result.style.display = '';
 }
 
 // =============================================
