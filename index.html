@@ -77,6 +77,9 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
 .input-field.is-manual:focus{border-color:var(--accent);box-shadow:0 0 0 2px rgba(0,212,255,0.15);}
 /* 終了時貯玉が開始時貯玉より多いときの補足（通常時は非表示） */
 .stock-clamp-note{display:none;font-size:9px;color:var(--warn);font-family:'JetBrains Mono',monospace;letter-spacing:0;line-height:1.4;}
+.stock-balance-note{font-size:10px;color:var(--text2);line-height:1.5;min-height:1.5em;}
+.stock-balance-note.warn{color:var(--warn);}
+.stock-balance-note.error{color:var(--red);}
 .auto-display{background:rgba(57,255,110,0.05);border:1px solid rgba(57,255,110,0.2);border-radius:var(--radius-sm);padding:9px 10px;font-size:16px;font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--green);width:100%;}
 select.input-field{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%238899aa' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:28px;}
 .cur-wrap{position:relative;}
@@ -337,11 +340,17 @@ select.input-field{cursor:pointer;appearance:none;background-image:url("data:ima
         </div>
         <div class="input-group">
           <div class="input-label">開始時貯玉 <span class="badge-manual">入力</span></div>
-          <input class="input-field is-manual" type="number" inputmode="numeric" placeholder="0" id="in-stock-start" oninput="onStockInput()">
+          <input class="input-field is-manual" type="number" inputmode="numeric" placeholder="0" id="in-stock-start" oninput="onStockInput(true)">
+        </div>
+        <div class="input-group">
+          <div class="input-label">貯玉カード <span class="badge-manual">選択・新規入力</span></div>
+          <input class="input-field is-manual" type="text" id="in-stock-card" list="stock-card-options" maxlength="80" oninput="onStockCardInput()" placeholder="打ち手のカード">
+          <datalist id="stock-card-options"></datalist>
+          <div class="stock-balance-note" id="stock-balance-note"></div>
         </div>
         <div class="input-group">
           <div class="input-label">投資終了時貯玉 <span class="badge-manual">入力</span></div>
-          <input class="input-field is-manual" type="number" inputmode="numeric" placeholder="0" id="in-stock-end" oninput="onStockInput()">
+          <input class="input-field is-manual" type="number" inputmode="numeric" placeholder="0" id="in-stock-end" oninput="onStockInput(false)">
           <div class="stock-clamp-note" id="stock-clamp-note">投資終了時貯玉が開始時貯玉より多いため0にしました</div>
         </div>
         <div class="input-group">
@@ -602,6 +611,10 @@ select.input-field{cursor:pointer;appearance:none;background-image:url("data:ima
       <div class="chip-select" id="uchi-chips"></div>
     </div>
     <div class="setting-row">
+      <div class="input-label" style="display:block;margin-bottom:6px;">ノリうち</div>
+      <button type="button" class="chip" id="nori-toggle" aria-pressed="false" onclick="toggleNoriuchi()">ノリうち OFF</button>
+    </div>
+    <div class="setting-row">
       <div class="input-label" style="display:block;margin-bottom:6px;">イベント</div>
       <input class="input-field" type="text" id="in-event" placeholder="例：じゃんじゃん来店" oninput="save()">
     </div>
@@ -821,7 +834,13 @@ const S = {
   rotationMode: 'simple',
   rotSegments: [],
   investBallSource: null, // 'stock'=開始/終了貯玉から自動計算, 'direct'=投資玉数を直接入力
+  noriuchi: false,
+  stockCardManual: false,
+  stockStartAuto: false,
+  stockAutoValue: null,
 };
+let stockBalancesCache = null;
+let stockBalancePromise = null;
 
 // =============================================
 // 初期化
@@ -892,7 +911,8 @@ function updateStockClampNote() {
 }
 
 // 貯玉欄の編集時：両方入力されていれば投資玉数へ差を反映（最後に編集した方を優先）
-function onStockInput() {
+function onStockInput(startEdited) {
+  if (startEdited) S.stockStartAuto = false;
   S.investBallSource = 'stock';
   const diff = calcInvestBallFromStock(
     document.getElementById('in-stock-start').value,
@@ -903,6 +923,93 @@ function onStockInput() {
   updateStockClampNote();
   recalc();
   save();
+  showStockBalanceNote();
+}
+
+function selectedUchiName() {
+  return document.querySelector('#uchi-chips .chip.selected')?.textContent || '自分';
+}
+
+function setDefaultStockCard(force) {
+  const input = document.getElementById('in-stock-card');
+  if (!input) return;
+  if (force || !S.stockCardManual || !input.value) {
+    input.value = selectedUchiName();
+    S.stockCardManual = false;
+  }
+  updateStockCardOptions();
+  applyStockBalance();
+}
+
+function updateStockCardOptions() {
+  const list = document.getElementById('stock-card-options');
+  if (!list) return;
+  list.replaceChildren();
+  if (!S.shop || !stockBalancesCache) return;
+  const cards = [...new Set(stockBalancesCache.filter(item => item.shop === S.shop.name).map(item => item.card))];
+  cards.forEach(card => {
+    const option = document.createElement('option');
+    option.value = card;
+    list.appendChild(option);
+  });
+}
+
+function showStockBalanceNote() {
+  const note = document.getElementById('stock-balance-note');
+  if (!note) return;
+  const card = document.getElementById('in-stock-card')?.value.trim();
+  if (!S.shop || !card || !stockBalancesCache) { note.textContent = ''; note.className = 'stock-balance-note'; return; }
+  const found = stockBalancesCache.find(item => item.shop === S.shop.name && item.card === card);
+  const balance = found ? Number(found.balance) : 0;
+  const current = document.getElementById('in-stock-start').value;
+  const warning = current !== '' && Number(current) !== balance;
+  note.textContent = `台帳残高 ${balance.toLocaleString('ja-JP')}玉` + (warning ? '　⚠ 開始時貯玉と異なります' : '');
+  note.className = 'stock-balance-note' + (warning ? ' warn' : '');
+}
+
+function applyStockBalance() {
+  if (!S.shop || !stockBalancesCache) { showStockBalanceNote(); return; }
+  const card = document.getElementById('in-stock-card')?.value.trim();
+  if (!card) { showStockBalanceNote(); return; }
+  const found = stockBalancesCache.find(item => item.shop === S.shop.name && item.card === card);
+  const balance = found ? Number(found.balance) : 0;
+  const input = document.getElementById('in-stock-start');
+  const decision = stockStartDecision(input.value, S.stockStartAuto, S.stockAutoValue, balance);
+  if (decision.auto && (input.value !== decision.value || !S.stockStartAuto)) {
+    input.value = decision.value;
+    S.stockStartAuto = true;
+    S.stockAutoValue = balance;
+    onStockInput(false);
+  }
+  showStockBalanceNote();
+}
+
+async function loadStockBalances(force) {
+  if (stockBalancesCache && !force) { updateStockCardOptions(); applyStockBalance(); return; }
+  if (stockBalancePromise) return stockBalancePromise;
+  stockBalancePromise = (async () => {
+    try {
+      const response = await gasFetch(GAS_URL + '?action=stockBalances', {redirect:'follow'});
+      if (!response.ok) throw new Error('通信失敗');
+      const data = await response.json();
+      if (!data || data.success !== true || !Array.isArray(data.balances)) throw new Error(data?.error || '応答不正');
+      stockBalancesCache = data.balances;
+      updateStockCardOptions();
+      applyStockBalance();
+    } catch (error) {
+      stockBalancesCache = null;
+      const note = document.getElementById('stock-balance-note');
+      if (note) { note.textContent = '台帳残高を取得できません。開始時貯玉を確認してください'; note.className = 'stock-balance-note error'; }
+    }
+  })();
+  try { await stockBalancePromise; } finally { stockBalancePromise = null; }
+}
+
+function onStockCardInput() {
+  S.stockCardManual = true;
+  save();
+  if (stockBalancesCache) applyStockBalance();
+  else if (!stockBalancePromise) loadStockBalances();
 }
 
 // 投資玉数を直接編集したとき：直接入力を優先する
@@ -930,6 +1037,7 @@ window.addEventListener('DOMContentLoaded', async () => {
       loadData();
       updateGuard();
       recalc();
+      loadStockBalances();
     } catch(e) {}
     // バックグラウンドで最新取得（店・機種・打ち手の選択状態を復元）
     loadMasters().then(() => {
@@ -956,6 +1064,8 @@ window.addEventListener('DOMContentLoaded', async () => {
         });
         updateNoriuchiMode();
       }
+      setDefaultStockCard(false);
+      loadStockBalances();
     });
   } else {
     // キャッシュなし→通常ロード
@@ -970,6 +1080,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     loadData();
     updateGuard();
     recalc();
+    loadStockBalances();
   }
 });
 
@@ -1163,6 +1274,9 @@ function onShopChange() {
   const name = document.getElementById('in-shop').value;
   S.shop = SHOPS.find(s=>s.name===name) || null;
   document.getElementById('disp-kankin').textContent = S.shop ? S.shop.kokan+'玉交換' : '—';
+  S.stockCardManual = false;
+  setDefaultStockCard(true);
+  loadStockBalances(true);
   updateHeader();
   updateGuard();
   recalc();
@@ -1245,10 +1359,22 @@ function updateTrialMode() {
 
 // ノリうちモード表示切り替え（清算計算機の show/hide）
 function updateNoriuchiMode() {
-  const uchiEl = document.querySelector('#uchi-chips .chip.selected');
-  const isNori = uchiEl ? uchiEl.textContent === 'ノリうち' : false;
   const sec    = document.getElementById('section-seisan');
-  if (sec) sec.style.display = isNori ? '' : 'none';
+  const toggle = document.getElementById('nori-toggle');
+  if (sec) sec.style.display = S.noriuchi ? '' : 'none';
+  if (toggle) {
+    toggle.classList.toggle('selected', S.noriuchi);
+    toggle.setAttribute('aria-pressed', String(S.noriuchi));
+    toggle.textContent = S.noriuchi ? 'ノリうち ON' : 'ノリうち OFF';
+  }
+}
+
+function toggleNoriuchi() {
+  S.noriuchi = !S.noriuchi;
+  updateNoriuchiMode();
+  recalc();
+  save();
+  if (!S.noriuchi) triggerRuikeiSync();
 }
 
 // ==== 清算計算 純関数（ここから） ====
@@ -1415,7 +1541,7 @@ function renderSeisan(r) {
 function buildUchiChips() {
   const wrap = document.getElementById('uchi-chips');
   wrap.innerHTML = '';
-  UCHI.forEach((u, i) => {
+  UCHI.filter(u => (typeof u === 'object' ? u.name : u) !== 'ノリうち').forEach((u, i) => {
     const name = typeof u === 'object' ? u.name : u;
     const c = document.createElement('div');
     c.className = 'chip' + (i === 0 ? ' selected' : '');
@@ -1423,6 +1549,7 @@ function buildUchiChips() {
     c.onclick = () => {
       wrap.querySelectorAll('.chip').forEach(x=>x.classList.remove('selected'));
       c.classList.add('selected');
+      setDefaultStockCard(false);
       save();
       recalc();
       triggerRuikeiSync();
@@ -1430,18 +1557,8 @@ function buildUchiChips() {
     };
     wrap.appendChild(c);
   });
-  // ノリうちチップ（固定：マスターと分離）
-  const nori = document.createElement('div');
-  nori.className = 'chip';
-  nori.textContent = 'ノリうち';
-  nori.onclick = () => {
-    wrap.querySelectorAll('.chip').forEach(x=>x.classList.remove('selected'));
-    nori.classList.add('selected');
-    save();
-    recalc();
-    updateNoriuchiMode();
-  };
-  wrap.appendChild(nori);
+  setDefaultStockCard(false);
+  updateNoriuchiMode();
 }
 
 function updateHeader() {
@@ -1921,7 +2038,7 @@ function recalc() {
   const uchi       = uchiEl ? uchiEl.textContent : '自分';
   const date       = document.getElementById('in-date').value;
   const isJibun    = (uchi === '自分');
-  const isNoriuchi = (uchi === 'ノリうち');
+  const isNoriuchi = S.noriuchi;
   const isDaichi   = !isJibun && !isNoriuchi; // 代打ち（累積管理対象）
   const ruikeiCard = document.getElementById('card-ruikei');
 
@@ -1998,6 +2115,96 @@ function recalc() {
 // =============================================
 // 送信
 // =============================================
+// ==== 台帳送信の純関数（ここから）
+function normalizeNoriDraft(data) {
+  if (data.uchi === 'ノリうち') return {uchi:'自分', noriuchi:true};
+  return {uchi:data.uchi || '自分', noriuchi:data.noriuchi === true};
+}
+
+// 旧ノリうち送信値と同じ変換を、打ち手から独立したフラグで行う。
+function buildSendValues(raw, uchi, isNoriuchi) {
+  const sent = {
+    sendUchi:isNoriuchi ? '自分' : uchi,
+    sendKosshi:isNoriuchi ? raw.kosshi / 2 : raw.kosshi,
+    sendSagitama:isNoriuchi ? raw.sagitama / 2 : raw.sagitama,
+    sendShigoto:isNoriuchi && raw.shigoto !== null ? raw.shigoto / 2 : raw.shigoto,
+    sendSoKaiten:isNoriuchi ? raw.soKaiten / 2 : raw.soKaiten,
+    sendSoRounds:isNoriuchi ? raw.soRounds / 2 : raw.soRounds,
+    sendTodayHits:isNoriuchi ? raw.todayHits / 2 : raw.todayHits,
+    sendHitBalls:isNoriuchi ? raw.hitBalls / 2 : raw.hitBalls,
+    sendJikanStr:raw.jikanStr,
+    sendShigotoJikyu:raw.shigotoJikyu,
+    sendHoshu:isNoriuchi ? 0 : raw.hoshu,
+    sendKoujoAmt:isNoriuchi ? 0 : raw.koujoAmt,
+  };
+  if (isNoriuchi && raw.kadoH !== null) {
+    const halfKadoH = raw.kadoH / 2;
+    const hh = Math.floor(halfKadoH);
+    const mm = Math.round((halfKadoH - hh) * 60);
+    sent.sendJikanStr = hh + ':' + String(mm).padStart(2, '0');
+    sent.sendShigotoJikyu = sent.sendShigoto !== null ? sent.sendShigoto / halfKadoH : null;
+  }
+  return sent;
+}
+
+function stockEffectiveEnd(start, end, investBall) {
+  if (end !== '' && end !== null && end !== undefined) return Number(end);
+  return Number(start) - Math.round(Number(investBall || 0));
+}
+
+function buildStockSubmission(start, card, end, recoverRaw, investBall) {
+  if (start === '' || start === null || start === undefined || !String(card || '').trim()) return {};
+  const inferredEnd = stockEffectiveEnd(start, end, investBall);
+  // 推定終了値が負なら空欄のまま送り、GAS側で投資玉数から同じ値を計算する。
+  const stockEnd = (end === '' || end === null || end === undefined) && inferredEnd < 0 ? '' : String(inferredEnd);
+  return {stockStart:String(start), stockCard:String(card).trim(),
+    stockEnd, stockRecoverRaw:String(recoverRaw || '')};
+}
+
+function calcStockLedgerDelta(start, end, recoverRaw, investBall) {
+  if (start === '' || start === null || start === undefined) return null;
+  const values = [start, stockEffectiveEnd(start, end, investBall), recoverRaw || 0].map(Number);
+  return values.every(Number.isFinite) ? values[1] + values[2] - values[0] : null;
+}
+
+function stockConfirmationLine(stock, investBall) {
+  if (!stock.stockCard) return '';
+  const delta = calcStockLedgerDelta(stock.stockStart, stock.stockEnd, stock.stockRecoverRaw, investBall);
+  if (delta === null) return '';
+  return `貯玉台帳 カード「${stock.stockCard}」 ${delta >= 0 ? '+' : ''}${delta.toLocaleString('ja-JP')}玉`;
+}
+
+function stockStartDecision(current, isAuto, autoValue, balance) {
+  const value = String(current === null || current === undefined ? '' : current);
+  if (value === '' || (isAuto && value === String(autoValue))) {
+    return {value:String(balance), auto:true, warning:false};
+  }
+  return {value, auto:false, warning:Number(value) !== balance};
+}
+
+function buildSubmitPayload(fields, sent, stock) {
+  return {
+    action:'submit', date:fields.date, shop:fields.shop, kishu:fields.kishu,
+    event:fields.event || '', daiban:fields.daiban, uchi:sent.sendUchi,
+    kosshi:Math.round(sent.sendKosshi), jikan:sent.sendJikanStr,
+    kitaiJikyu:fields.kitaiJikyu !== null ? Math.round(fields.kitaiJikyu) : '',
+    shigoto:sent.sendShigoto !== null ? Math.round(sent.sendShigoto) : '',
+    shigotoJikyu:sent.sendShigotoJikyu !== null ? Math.round(sent.sendShigotoJikyu) : '',
+    soKaiten:sent.sendSoKaiten,
+    kaitenRitsu:fields.kaitenRitsu !== null ? parseFloat(fields.kaitenRitsu.toFixed(2)) : '',
+    border:parseFloat(fields.border.toFixed(2)), un:fields.un !== null ? Math.round(fields.un) : '',
+    sagitama:Math.round(sent.sendSagitama), kariHoshu:sent.sendHoshu,
+    soRounds:sent.sendSoRounds || 0, todayHits:sent.sendTodayHits || 0,
+    hitBalls:Math.round(sent.sendHitBalls || 0),
+    jitsu1R:sent.sendSoRounds > 0 ? parseFloat((sent.sendHitBalls / sent.sendSoRounds).toFixed(1)) : '',
+    genkinInvest:Math.round(fields.genkinInvest), mochiRatio:fields.mochiRatio,
+    choTamaInvest:Math.round(fields.choTamaInvest), genkinInvestBalls:Math.round(fields.genkinInvestBalls),
+    watashita:Math.round(fields.watashita), moratta:Math.round(fields.moratta), memo:fields.memo || '',
+    ...stock,
+  };
+}
+// ==== 台帳送信の純関数（ここまで）
+
 async function doSend() {
   // バリデーション
   if (!S.shop)  { showAlert('店を選択してください'); return; }
@@ -2124,75 +2331,35 @@ async function doSend() {
   const mochiRatioSend = soToushiTama > 0 ? parseFloat((mochiTotal / soToushiTama).toFixed(4)) : 1;
 
   // ========== ノリうちモード：全数値を÷2して自分名義で記録 ==========
-  const isNoriuchi = (uchi === 'ノリうち');
-  const sendUchi      = isNoriuchi ? '自分' : uchi;
-  let   sendKosshi    = isNoriuchi ? kosshi   / 2 : kosshi;
-  let   sendSagitama  = isNoriuchi ? sagitama / 2 : sagitama;
-  let   sendShigoto   = (isNoriuchi && shigoto   !== null) ? shigoto   / 2 : shigoto;
-  let   sendSoKaiten  = isNoriuchi ? soKaiten  / 2 : soKaiten;
-  let   sendSoRounds  = isNoriuchi ? soRounds  / 2 : soRounds;
-  let   sendTodayHits = isNoriuchi ? todayHits / 2 : todayHits;
-  let   sendHitBalls  = isNoriuchi ? hitBalls  / 2 : hitBalls;
-  let   sendJikanStr  = jikanStr;
-  let   sendShigotoJikyu = shigotoJikyu;
-  if (isNoriuchi && kadoH !== null) {
-    const halfKadoH = kadoH / 2;
-    const hh = Math.floor(halfKadoH);
-    const mm = Math.round((halfKadoH - hh) * 60);
-    sendJikanStr     = hh + ':' + String(mm).padStart(2, '0');
-    sendShigotoJikyu = sendShigoto !== null ? sendShigoto / halfKadoH : null;
-  }
-  const sendHoshu    = isNoriuchi ? 0 : hoshu;
-  const sendKoujoAmt = isNoriuchi ? 0 : koujoAmt;
+  const isNoriuchi = S.noriuchi;
+  const sent = buildSendValues({kosshi,sagitama,shigoto,soKaiten,soRounds,todayHits,hitBalls,
+    jikanStr,kadoH,shigotoJikyu,hoshu,koujoAmt}, uchi, isNoriuchi);
+  const {sendUchi,sendKosshi,sendSagitama,sendShigoto,sendJikanStr,sendHoshu,sendKoujoAmt} = sent;
+  const stock = buildStockSubmission(
+    document.getElementById('in-stock-start').value,
+    document.getElementById('in-stock-card').value,
+    document.getElementById('in-stock-end').value,
+    document.getElementById('in-recover').value,
+    investBallRaw
+  );
   // ================================================================
 
   // 送信確認
   const noriNote = isNoriuchi ? '\n※ノリうちモード：全数値を÷2して自分名義で記録します' : '';
+  const stockLine = stockConfirmationLine(stock, investBallRaw);
+  const stockNote = stockLine ? `\n${stockLine}` : '';
   const confirmMsg = isTrial
-    ? `【送信確認】（試しうち）\n日付：${date}\n店：${S.shop.name}　台番号：${daiban || '未入力'}\n打ち手：${sendUchi}\n\n収支：${fmt(sendKosshi)}円\n差玉：${fmtN(Math.round(sendSagitama))}玉${noriNote}\n\n送信しますか？`
-    : `【送信確認】\n日付：${date}\n店：${S.shop.name}　台番号：${daiban || '未入力'}\n機種：${S.kishu.name}\n打ち手：${sendUchi}\n\n収支：${fmt(sendKosshi)}円\n稼働：${sendJikanStr || '—'}\n仕事量：${sendShigoto !== null ? fmt(Math.round(sendShigoto))+'円' : '—'}\n${sendUchi !== '自分' ? '報酬：¥'+fmtN(sendHoshu)+(sendKoujoAmt > 0 ? '（控除¥'+fmtN(sendKoujoAmt)+'）' : '') : ''}${noriNote}\n\n送信しますか？`;
+    ? `【送信確認】（試しうち）\n日付：${date}\n店：${S.shop.name}　台番号：${daiban || '未入力'}\n打ち手：${sendUchi}\n\n収支：${fmt(sendKosshi)}円\n差玉：${fmtN(Math.round(sendSagitama))}玉${noriNote}${stockNote}\n\n送信しますか？`
+    : `【送信確認】\n日付：${date}\n店：${S.shop.name}　台番号：${daiban || '未入力'}\n機種：${S.kishu.name}\n打ち手：${sendUchi}\n\n収支：${fmt(sendKosshi)}円\n稼働：${sendJikanStr || '—'}\n仕事量：${sendShigoto !== null ? fmt(Math.round(sendShigoto))+'円' : '—'}\n${sendUchi !== '自分' ? '報酬：¥'+fmtN(sendHoshu)+(sendKoujoAmt > 0 ? '（控除¥'+fmtN(sendKoujoAmt)+'）' : '') : ''}${noriNote}${stockNote}\n\n送信しますか？`;
   showConfirm(
     confirmMsg,
     async () => {
       document.getElementById('send-btn').disabled = true;
       document.getElementById('send-btn').textContent = '送信中...';
       try {
-        const payload = {
-          action: 'submit',
-          date:        date,
-          shop:        S.shop.name,
-          kishu:       S.kishu.name,
-          event:       eventName || '',
-          daiban:      daiban,
-          uchi:        sendUchi,                                      // ノリうち→'自分'
-          kosshi:      Math.round(sendKosshi),                       // ノリうち→÷2
-          jikan:       sendJikanStr,                                 // ノリうち→÷2
-          kitaiJikyu:  kitaiJikyu !== null ? Math.round(kitaiJikyu) : '', // 変わらず
-          shigoto:     sendShigoto    !== null ? Math.round(sendShigoto)    : '', // ノリうち→÷2
-          shigotoJikyu:sendShigotoJikyu !== null ? Math.round(sendShigotoJikyu) : '', // ノリうち→再計算
-          soKaiten:    sendSoKaiten,                                 // ノリうち→÷2
-          kaitenRitsu: kaitenRitsu !== null ? parseFloat(kaitenRitsu.toFixed(2)) : '', // 変わらず
-          border:      parseFloat(border.toFixed(2)),
-          un:          un !== null ? Math.round(un) : '',
-          sagitama:    Math.round(sendSagitama),                     // ノリうち→÷2
-          kariHoshu:   sendHoshu,                                    // ノリうち→0
-          soRounds:    sendSoRounds || 0,                            // ノリうち→÷2
-          todayHits:   sendTodayHits || 0,                          // ノリうち→÷2
-          hitBalls:    Math.round(sendHitBalls || 0),               // ノリうち→÷2
-          jitsu1R:     sendSoRounds > 0 ? parseFloat((sendHitBalls / sendSoRounds).toFixed(1)) : '', // 比率不変
-          genkinInvest:    Math.round(invest),              // W列：現金投資額(円) ノリうちでも生値
-          mochiRatio:      mochiRatioSend,               // V列：持ち玉比率（0〜1の小数）
-          choTamaInvest:   Math.round(investBallRaw),    // 参考：貯玉投資(発、moratta除く)
-          genkinInvestBalls: Math.round(invest / (100 / kokan)), // 参考：現金投資(発)
-          watashita:       Math.round(watashita),        // 渡した玉(発)
-          moratta:         Math.round(moratta),          // もらった玉(発)
-          memo:            memo || '',
-        };
-        console.log('[doSend] payload:', JSON.stringify(payload, null, 2));
-        console.log('[doSend] 内訳 watashita:', watashita, 'moratta:', moratta,
-          '| investBall(調整後):', investBall, 'recover(調整後):', recover,
-          '| mochiTama:', mochiTama, 'mochiTotal:', mochiTotal,
-          '| soToushiTama:', soToushiTama, '→ mochiRatio:', mochiRatioSend);
+        const payload = buildSubmitPayload({date,shop:S.shop.name,kishu:S.kishu.name,event:eventName,
+          daiban,kitaiJikyu,kaitenRitsu,border,un,genkinInvest:invest,mochiRatio:mochiRatioSend,
+          choTamaInvest:investBallRaw,genkinInvestBalls:invest / (100 / kokan),watashita,moratta,memo}, sent, stock);
 
         const res = await gasFetch(GAS_URL, {
           method: 'POST',
@@ -2200,6 +2367,7 @@ async function doSend() {
           headers: {'Content-Type': 'text/plain'},
           body: JSON.stringify(payload),
         });
+        if (!res.ok) throw new Error('通信に失敗しました');
         const data = await res.json();
 
         if (data.success) {
@@ -2221,20 +2389,7 @@ async function doSend() {
           showAlert('❌ 送信失敗：' + (data.error || '不明なエラー'));
         }
       } catch(e) {
-        // GASはCORSでレスポンスが取れないが送信自体は成功している
-        if (sendUchi !== '自分') {
-          addRuikeiData(sendUchi, date, {
-            sagitama:      Math.round(sendSagitama),
-            genkinInvest:  Math.round(invest),
-            choTama:       Math.round(investBall + mochiTama), // 貯玉(moratta込み)＋持玉使用を保存
-            genkinBalls:   Math.round(invest / (100 / kokan)),
-            rewardWeighted: currentReward.weighted,
-            rewardWeight: currentReward.weight,
-          });
-        }
-        showAlert('✅ 送信完了！');
-        // 日付・打ち手・店・機種を保持してリロード（引き継ぎ差玉が0になるバグ修正）
-        setTimeout(() => afterSendReload(), 1500);
+        showAlert('送信結果を確認できません。再送する前にappbの記録と貯玉台帳を確認してください');
       } finally {
         document.getElementById('send-btn').disabled = false;
         document.getElementById('send-btn').textContent = '📤 記録送信';
@@ -2302,7 +2457,7 @@ async function syncRuikeiFromGAS() {
   const uchiEl = document.querySelector('#uchi-chips .chip.selected');
   const uchi   = uchiEl ? uchiEl.textContent : '自分';
   const date   = document.getElementById('in-date').value;
-  if (!uchi || uchi === '自分' || !date) return;
+  if (!uchi || uchi === '自分' || S.noriuchi || !date) return;
   const cacheKey = 'ruikei_v7_' + date + '_' + uchi;
   const beforeSync = localStorage.getItem(cacheKey);
   try {
@@ -2437,6 +2592,10 @@ function save() {
       investB:    document.getElementById('in-invest-ball').value,
       stockStart: document.getElementById('in-stock-start').value,
       stockEnd:   document.getElementById('in-stock-end').value,
+      stockCard:  document.getElementById('in-stock-card').value,
+      stockCardManual: S.stockCardManual,
+      stockStartAuto: S.stockStartAuto,
+      stockAutoValue: S.stockAutoValue,
       investBallSource: S.investBallSource,
       recover:    document.getElementById('in-recover').value,
       watashita:  document.getElementById('in-watashita').value,
@@ -2450,6 +2609,7 @@ function save() {
       shop:     S.shop  ? S.shop.name  : null,
       kishu:    S.kishu ? S.kishu.name : null,
       uchi:     document.querySelector('#uchi-chips .chip.selected')?.textContent || '自分',
+      noriuchi: S.noriuchi,
       hits:     S.hits,
       ratio:    S.ratio,
     };
@@ -2465,6 +2625,11 @@ function loadData() {
     const raw = localStorage.getItem('pachinkoLog_v5');
     if (!raw) return;
     const d = JSON.parse(raw);
+    const noriState = normalizeNoriDraft(d);
+    S.noriuchi = noriState.noriuchi;
+    S.stockCardManual = d.stockCardManual === true;
+    S.stockStartAuto = d.stockStartAuto === true;
+    S.stockAutoValue = d.stockAutoValue === null || d.stockAutoValue === undefined ? null : Number(d.stockAutoValue);
     S.rotationMode = d.rotationMode === 'segments' ? 'segments' : 'simple';
     S.rotSegments = Array.isArray(d.rotSegments) ? d.rotSegments.filter(row => row && typeof row === 'object').map(row => ({
       left: typeof row.left === 'string' || typeof row.left === 'number' ? row.left : '',
@@ -2497,19 +2662,21 @@ function loadData() {
       const k = KISHU.find(x=>x.name===d.kishu);
       if (k) { S.kishu = k; document.getElementById('in-kishu').value = d.kishu; }
     }
-    if (d.uchi) {
+    if (noriState.uchi) {
       document.querySelectorAll('#uchi-chips .chip').forEach(c => {
-        c.classList.toggle('selected', c.textContent === d.uchi);
+        c.classList.toggle('selected', c.textContent === noriState.uchi);
       });
     }
+    if (d.stockCard) document.getElementById('in-stock-card').value = d.stockCard;
+    setDefaultStockCard(false);
     if (d.hits) { S.hits = d.hits; renderHitList(); }
     if (d.ratio !== undefined) {
       S.ratio = d.ratio;
       document.getElementById('ratio-slider').value = d.ratio;
       setRatioVal(d.ratio);
     }
-    const cachedReward = getRuikeiData(d.uchi, document.getElementById('in-date').value);
-    if (d.uchi && d.uchi !== '自分' && cachedReward.rewardVersion !== 1) triggerRuikeiSync();
+    const cachedReward = getRuikeiData(noriState.uchi, document.getElementById('in-date').value);
+    if (!S.noriuchi && noriState.uchi !== '自分' && cachedReward.rewardVersion !== 1) triggerRuikeiSync();
     updateHeader();
     updateTrialMode();   // 試しうちモード復元
     updateNoriuchiMode(); // ノリうちモード復元
@@ -2530,6 +2697,10 @@ function afterSendReload() {
      'invest','investB','stockStart','stockEnd','recover','watashita','moratta',
      'hitStart','nodama','daiban','date'].forEach(k => { d[k] = ''; });
     d.investBallSource = null;
+    d.stockCard = '';
+    d.stockCardManual = false;
+    d.stockStartAuto = false;
+    d.stockAutoValue = null;
     d.memo = '';
     d.hits = [];
     d.rotSegments = [];
@@ -2551,16 +2722,23 @@ function doReset() {
       S.shop = null; S.kishu = null; S.ratio = 100; S.hits = [];
       S.rotationMode = 'simple'; S.rotSegments = [];
       S.investBallSource = null;
+      S.noriuchi = false;
+      S.stockCardManual = false;
+      S.stockStartAuto = false;
+      S.stockAutoValue = null;
       updateRotationModeUI();
       renderRotSegments();
       ['in-date','in-rot-start','in-rot-end','in-time-start','in-time-end',
        'in-invest','in-invest-ball','in-stock-start','in-stock-end','in-recover',
+       'in-stock-card',
        'in-watashita','in-moratta',
        'in-hit-start','in-hit-nodama','in-memo'].forEach(id => {
         const e = document.getElementById(id); if(e) e.value='';
       });
       updateInvestBallBadge();
       updateStockClampNote();
+      updateNoriuchiMode();
+      showStockBalanceNote();
       document.getElementById('in-shop').value = '';
       document.getElementById('in-kishu').value = '';
       document.getElementById('in-event').value = eventValue;
@@ -2577,4 +2755,3 @@ function doReset() {
 </script>
 </body>
 </html>
-
