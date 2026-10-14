@@ -726,10 +726,14 @@ function ensureAppToken(forcePrompt) {
 // unauthorizedなら保存済みを消して再入力し、1回だけ再試行する。
 async function gasFetch(url, options, retried) {
   const opt = Object.assign({}, options);
+  // silent: 裏で読むだけの通信。合言葉の入力画面を出さず、断られたらそのまま返す
+  const silent = !!opt.silent;
+  delete opt.silent;
   const isGas = isGasUrl(url);
   let token = '';
   if (isGas) {
     token = readAppToken();
+    if (!token && silent) throw new Error('合言葉が未保存');
     if (!token) token = await ensureAppToken(false);
   }
   let reqUrl = url;
@@ -753,7 +757,7 @@ async function gasFetch(url, options, retried) {
   // unauthorized かどうかを確認する（本文はコピーで読む）
   let data = null;
   try { data = await res.clone().json(); } catch(e) {}
-  if (data && data.success === false && data.error === 'unauthorized' && !retried) {
+  if (data && data.success === false && data.error === 'unauthorized' && !retried && !silent) {
     clearAppToken();
     await ensureAppToken(true);
     return gasFetch(url, options, true);
@@ -1242,16 +1246,18 @@ function calcMachineSpeed(records, kishuName) {
 // ==== 実測時速の純関数（ここまで）
 
 // 実測時速のための稼働記録（機種タブを開いたときに1回だけ読む）
-let SPEED_RECORDS = null, speedLoading = false;
+let SPEED_RECORDS = null, speedLoading = false, speedError = false;
 async function loadSpeedRecords() {
   if (SPEED_RECORDS || speedLoading) return;
   speedLoading = true;
   try {
-    const res = await gasFetch(GAS_URL + '?action=records', { redirect: 'follow' });
+    const res = await gasFetch(GAS_URL + '?action=records', { redirect: 'follow', silent: true });
     const data = await res.json();
-    if (data && data.success && Array.isArray(data.records)) SPEED_RECORDS = data.records;
+    if (data && data.success && Array.isArray(data.records)) { SPEED_RECORDS = data.records; speedError = false; }
+    else speedError = true;
   } catch (e) {
-    // 読めないときは「—」のまま（次に機種タブを開いたときに読み直す）
+    // 読めないときは「読めませんでした」と出す（次に機種タブを開いたときに読み直す）
+    speedError = true;
   } finally {
     speedLoading = false;
     renderMachineSpeed();
@@ -1262,7 +1268,7 @@ function renderMachineSpeed() {
   const lineEl = document.getElementById('jisoku-line');
   if (!valEl || !lineEl) return;
   const sp = (S.kishu && SPEED_RECORDS) ? calcMachineSpeed(SPEED_RECORDS, S.kishu.name) : null;
-  valEl.textContent = sp ? Math.round(sp.speed) + '回' : (SPEED_RECORDS ? '記録なし' : '—');
+  valEl.textContent = sp ? Math.round(sp.speed) + '回' : (SPEED_RECORDS ? '記録なし' : (speedError ? '読めませんでした' : '—'));
   lineEl.hidden = !sp;
   if (sp) lineEl.textContent = '通常回転 ' + fmtN(Math.round(sp.rot)) + '回 ÷ ' + sp.hours.toFixed(1) + '時間（' + sp.count + '回分）';
 }
