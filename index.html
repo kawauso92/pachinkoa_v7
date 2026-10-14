@@ -1223,58 +1223,20 @@ function hideDialog() {
   const m = document.getElementById('dialogModal');
   if (m) m.classList.remove('show');
 }
-// ==== 実測時速の純関数（ここから）
-// 稼働記録の稼働時間（"h:mm"）を時間に直す。読めなければ null
-function parseKadoHours(text) {
-  const m = /^(\d+):(\d{1,2})$/.exec(String(text || '').trim());
-  if (!m) return null;
-  const h = Number(m[1]) + Number(m[2]) / 60;
-  return h > 0 ? h : null;
-}
-// 機種ごとの実測時速＝通常回転の合計 ÷ 稼働時間の合計（時間か回転が無い記録は除く）
-function calcMachineSpeed(records, kishuName) {
-  let rot = 0, hours = 0, count = 0;
-  (Array.isArray(records) ? records : []).forEach(r => {
-    if (!r || r.kishu !== kishuName) return;
-    const h = parseKadoHours(r.jikan);
-    const k = Number(r.soKaiten);
-    if (!(h > 0) || !(k > 0)) return;
-    rot += k; hours += h; count++;
-  });
-  return count ? { speed: rot / hours, rot, hours, count } : null;
-}
-// ==== 実測時速の純関数（ここまで）
-
-// 実測時速のための稼働記録（機種タブを開いたときに1回だけ読む）
-let SPEED_RECORDS = null, speedLoading = false, speedError = false;
-async function loadSpeedRecords() {
-  if (SPEED_RECORDS || speedLoading) return;
-  speedLoading = true;
-  try {
-    const res = await gasFetch(GAS_URL + '?action=records', { redirect: 'follow', silent: true });
-    const data = await res.json();
-    if (data && data.success && Array.isArray(data.records)) { SPEED_RECORDS = data.records; speedError = false; }
-    else speedError = true;
-  } catch (e) {
-    // 読めないときは「読めませんでした」と出す（次に機種タブを開いたときに読み直す）
-    speedError = true;
-  } finally {
-    speedLoading = false;
-    renderMachineSpeed();
-  }
-}
+// 実測の時速は機種一覧の AC〜AF 列（GASが記録の送信・機種の保存のたびに作り直す）を表示するだけ
 function renderMachineSpeed() {
   const valEl = document.getElementById('jisoku-actual');
   const lineEl = document.getElementById('jisoku-line');
   if (!valEl || !lineEl) return;
-  const sp = (S.kishu && SPEED_RECORDS) ? calcMachineSpeed(SPEED_RECORDS, S.kishu.name) : null;
-  valEl.textContent = sp ? Math.round(sp.speed) + '回' : (SPEED_RECORDS ? '記録なし' : (speedError ? '読めませんでした' : '—'));
-  lineEl.hidden = !sp;
-  if (sp) lineEl.textContent = '通常回転 ' + fmtN(Math.round(sp.rot)) + '回 ÷ ' + sp.hours.toFixed(1) + '時間（' + sp.count + '回分）';
+  const k = S.kishu ? (KISHU.find(x => x.name === S.kishu.name) || S.kishu) : null;
+  const has = k && Number(k.jisokuActual) > 0;
+  valEl.textContent = has ? Math.round(k.jisokuActual) + '回' : '記録なし';
+  lineEl.hidden = !has;
+  if (has) lineEl.textContent = '通常回転 ' + fmtN(Math.round(k.jisokuRot)) + '回 ÷ ' + Number(k.jisokuHours).toFixed(1) + '時間（' + k.jisokuCount + '回分）';
 }
 
 function switchTab(name) {
-  if (name === 'border') { loadSpeedRecords(); renderMachineSpeed(); }
+  if (name === 'border') renderMachineSpeed();
   ['main','hit','border','setting'].forEach(t => {
     document.getElementById('tab-'+t).classList.toggle('active', t===name);
     document.getElementById('nav-'+t).classList.toggle('active', t===name);
