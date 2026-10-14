@@ -10,13 +10,13 @@ function element(id) {
   if (!elements.has(id)) elements.set(id, {
     value:'', textContent:'', className:'', style:{}, attributes:{},
     classList:{toggle(){},add(){},remove(){}}, setAttribute(name, value){this.attributes[name] = value;},
-    replaceChildren(){},
+    replaceChildren(){}, appendChild(){},
   });
   return elements.get(id);
 }
 let selected = {textContent:'自分'};
 const context = vm.createContext({window:{addEventListener(){}},
-  document:{getElementById:element, querySelector:() => selected, querySelectorAll:() => []},
+  document:{createElement:() => ({}), getElementById:element, querySelector:() => selected, querySelectorAll:() => []},
   localStorage:{getItem:() => null}, console, setTimeout(){}, clearTimeout(){}});
 vm.runInContext(script, context);
 vm.runInContext('recalc = () => {}; save = () => {}; triggerRuikeiSync = () => {}', context);
@@ -46,6 +46,28 @@ element('in-stock-start').value = '700';
 vm.runInContext('onStockInput(true)', context);
 assert.equal(vm.runInContext('S.stockStartAuto', context), false);
 assert.ok(element('stock-balance-note').textContent.includes('異なります'));
+element('in-stock-card').value = '未登録';
+element('in-stock-start').value = '';
+vm.runInContext('applyStockBalance()', context);
+assert.equal(element('in-stock-start').value, '');
+assert.ok(element('stock-balance-note').textContent.includes('未登録'));
+// 未登録では手入力を保持し、別カードの自動入力値は持ち越さない。
+element('in-stock-start').value = '7350';
+vm.runInContext('applyStockBalance()', context);
+assert.equal(element('in-stock-start').value, '7350');
+element('in-stock-start').value = '750';
+vm.runInContext('S.stockStartAuto = true; S.stockAutoValue = 750; applyStockBalance()', context);
+assert.equal(element('in-stock-start').value, '');
+assert.equal(vm.runInContext('S.stockAutoValue', context), null);
+// 登録済みのゼロ残高は未登録と区別して自動入力する。
+element('in-stock-card').value = 'ゼロ';
+vm.runInContext("stockBalancesCache = [{shop:'A', card:'ゼロ', balance:0}]; applyStockBalance()", context);
+assert.equal(element('in-stock-start').value, '0');
+element('in-stock-card').value = '自分';
+vm.runInContext("stockBalancesCache = [{shop:'A', card:'自分', balance:-2000}]", context);
+vm.runInContext('applyStockBalance()', context);
+assert.equal(element('in-stock-start').value, '');
+assert.ok(element('stock-balance-note').textContent.includes('棚卸し'));
 const chips = ['自分', '代1'].map(name => ({textContent:name, selected:false,
   classList:{toggle(_name, enabled){this.owner.selected = enabled}}}));
 chips.forEach(chip => { chip.classList.owner = chip; });
@@ -66,3 +88,14 @@ context.document.createElement = () => ({});
 vm.runInContext("UCHI = [{name:'自分'}, {name:'代1'}]; buildUchiChips()", context);
 assert.deepEqual(chipWrap.children.map(chip => chip.textContent), ['自分', '代1']);
 console.log('PASS: ノリうち独立切替、打ち手カード既定、手入力保持');
+
+// 履歴がなくても設定の打ち手をカード候補にする。
+const cardOptions = element('stock-card-options');
+cardOptions.children = [];
+cardOptions.replaceChildren = () => { cardOptions.children = []; };
+cardOptions.appendChild = option => cardOptions.children.push(option);
+vm.runInContext("UCHI = [{name:'自分'}, {name:'代1'}, '友達', {name:'ノリうち'}, {name:'自分'}]; stockBalancesCache = null; updateStockCardOptions()", context);
+assert.deepEqual(cardOptions.children.map(option => option.value), ['自分', '代1', '友達']);
+vm.runInContext("stockBalancesCache = [{shop:'A',card:'旧カード',balance:50}, {shop:'B',card:'別店',balance:10}]; updateStockCardOptions()", context);
+assert.deepEqual(cardOptions.children.map(option => option.value), ['自分', '代1', '友達', '旧カード']);
+console.log('PASS: 設定の打ち手から貯玉カード候補を自動読込');

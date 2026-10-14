@@ -9,8 +9,8 @@ const start = '// ==== 台帳送信の純関数（ここから）';
 const end = '// ==== 台帳送信の純関数（ここまで）';
 const code = html.slice(html.indexOf(start), html.indexOf(end));
 assert.ok(html.includes(start) && html.includes(end));
-const {normalizeNoriDraft, buildSendValues, buildStockSubmission, buildSubmitPayload, calcStockLedgerDelta, stockConfirmationLine, stockStartDecision} =
-  new Function(`${code}\nreturn {normalizeNoriDraft, buildSendValues, buildStockSubmission, buildSubmitPayload, calcStockLedgerDelta, stockConfirmationLine, stockStartDecision};`)();
+const {normalizeNoriDraft, buildSendValues, buildStockSubmission, buildSubmitPayload, calcStockLedgerDelta, stockConfirmationLine, stockStartDecision, stockSubmissionCheck} =
+  new Function(`${code}\nreturn {normalizeNoriDraft, buildSendValues, buildStockSubmission, buildSubmitPayload, calcStockLedgerDelta, stockConfirmationLine, stockStartDecision, stockSubmissionCheck};`)();
 
 assert.deepEqual(normalizeNoriDraft({uchi:'ノリうち'}), {uchi:'自分', noriuchi:true});
 assert.deepEqual(normalizeNoriDraft({uchi:'代1', noriuchi:true}), {uchi:'代1', noriuchi:true});
@@ -67,4 +67,13 @@ assert.deepEqual(stockStartDecision('', false, null, 750), {value:'750', auto:tr
 assert.deepEqual(stockStartDecision('750', true, 750, 900), {value:'900', auto:true, warning:false});
 assert.deepEqual(stockStartDecision('700', false, null, 750), {value:'700', auto:false, warning:true});
 assert.deepEqual(stockStartDecision('750', false, null, 750), {value:'750', auto:false, warning:false});
+assert.deepEqual(stockStartDecision('', false, null, null), {value:'', auto:false, warning:false});
+assert.deepEqual(stockStartDecision('10000', false, null, null), {value:'10000', auto:false, warning:false});
+assert.deepEqual(stockStartDecision('', false, null, -2000), {value:'', auto:false, warning:true});
+assert.equal(stockSubmissionCheck('10000', '自分', null, true).error, '');
+assert.match(stockSubmissionCheck('', '自分', null, true).error, /開始時貯玉/);
+assert.match(stockSubmissionCheck('9000', '自分', {balance:10000}, true).error, /台帳残高/);
+assert.match(stockSubmissionCheck('10000', '自分', {balance:-2000}, true).error, /棚卸し/);
+assert.equal(stockSubmissionCheck('10000', '自分', {balance:10000}, true).error, '');
+assert.equal(stockSubmissionCheck('', '自分', null, false).error, '');
 console.log('PASS: ノリうち旧記録、送信データ互換、台帳増減と未入力');
