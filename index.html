@@ -483,7 +483,6 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield;}
       <div><span class="k">初当たり確率</span><span class="v num" id="hit-jitsu-rate">—</span><span class="s" id="hit-hatsua-spec">スペック 1/—</span></div>
       <div><span class="k">平均出玉</span><span class="v num" id="hit-avg-balls">—</span><span class="s">初当たり1回あたり</span></div>
     </section>
-    <p class="note" id="hit-round11-note" hidden>この機種は11R以上の振り分けがあるため、データランプの当たり回数とずれることがあります</p>
 
     <dl class="kv" style="padding:8px 0;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);">
       <dt>出玉の合計</dt><dd class="num" id="sum-hit-balls">0玉</dd>
@@ -492,6 +491,16 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield;}
       <dt>総増減（実測 − 理論）</dt><dd><span class="badge neu" id="sum-total-delta">—</span></dd>
     </dl>
 
+    <!-- データランプ（台の上のデータカウンター）の当たり数。開始時と出玉なしを入れると、ランプの合計と同じになる -->
+    <section class="group" aria-label="データランプの当たり数">
+      <h2>データランプの当たり数<span>合計 <span class="num" id="sum-hit-total">0回</span></span></h2>
+      <p class="note" id="hit-round11-note" hidden>この機種は11R以上の振り分けがあるため、データランプの当たり回数とずれることがあります</p>
+      <div class="inputs">
+        <div class="field"><label for="in-hit-start">開始時の当たり数</label><input class="n" type="number" inputmode="numeric" placeholder="0" id="in-hit-start" value="0" oninput="recalc();save()"></div>
+        <div class="field"><label for="in-hit-nodama">出玉なし当たり</label><input class="n" type="number" inputmode="numeric" placeholder="0" id="in-hit-nodama" value="0" oninput="recalc();save()"></div>
+      </div>
+    </section>
+
     <!-- 当たりの記録 -->
     <section class="group" aria-label="当たりの記録">
       <h2>当たりの記録</h2>
@@ -499,17 +508,6 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield;}
       <button class="add" id="add-hit-btn" type="button">＋ 当たりを追加</button>
     </section>
 
-    <!-- データランプと合わせる -->
-    <details class="fold">
-      <summary>データランプと合わせる<span>開始当たり・出玉なし</span></summary>
-      <div class="inner">
-        <div class="inputs">
-          <div class="field"><label for="in-hit-start">開始時の当たり数</label><input class="n" type="number" inputmode="numeric" placeholder="0" id="in-hit-start" value="0" oninput="recalc();save()"></div>
-          <div class="field"><label for="in-hit-nodama">出玉なし当たり</label><input class="n" type="number" inputmode="numeric" placeholder="0" id="in-hit-nodama" value="0" oninput="recalc();save()"></div>
-        </div>
-        <div class="note">データランプの表示：合計 <span class="num" id="sum-hit-total">0回</span></div>
-      </div>
-    </details>
 
   </div>
 </div>
@@ -525,7 +523,9 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield;}
     <dt>平均連チャン</dt><dd class="num" id="disp-spec-heiren">—</dd>
     <dt>1R確率</dt><dd class="num" id="disp-spec-total1r">—</dd>
     <dt>時速</dt><dd class="num" id="disp-spec-jikan">—</dd>
+    <dt>実測の時速</dt><dd class="num" id="jisoku-actual">—</dd>
   </dl>
+  <p class="note" id="jisoku-line" hidden></p>
 
   <section class="group" aria-label="ボーダー">
     <h2>ボーダー<span id="disp-spec-kankin">換金率 —</span></h2>
@@ -556,9 +556,6 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield;}
     <h2>ラウンドの内訳</h2>
     <dl class="kv" id="spec-rounds"></dl>
   </section>
-
-  <!-- 実測時速（中身は別の担当が作る） -->
-  <section class="kuse" id="jisoku-line" aria-label="実測時速" hidden></section>
 </div>
 
 <!-- ===== 設定 ===== -->
@@ -1222,7 +1219,56 @@ function hideDialog() {
   const m = document.getElementById('dialogModal');
   if (m) m.classList.remove('show');
 }
+// ==== 実測時速の純関数（ここから）
+// 稼働記録の稼働時間（"h:mm"）を時間に直す。読めなければ null
+function parseKadoHours(text) {
+  const m = /^(\d+):(\d{1,2})$/.exec(String(text || '').trim());
+  if (!m) return null;
+  const h = Number(m[1]) + Number(m[2]) / 60;
+  return h > 0 ? h : null;
+}
+// 機種ごとの実測時速＝通常回転の合計 ÷ 稼働時間の合計（時間か回転が無い記録は除く）
+function calcMachineSpeed(records, kishuName) {
+  let rot = 0, hours = 0, count = 0;
+  (Array.isArray(records) ? records : []).forEach(r => {
+    if (!r || r.kishu !== kishuName) return;
+    const h = parseKadoHours(r.jikan);
+    const k = Number(r.soKaiten);
+    if (!(h > 0) || !(k > 0)) return;
+    rot += k; hours += h; count++;
+  });
+  return count ? { speed: rot / hours, rot, hours, count } : null;
+}
+// ==== 実測時速の純関数（ここまで）
+
+// 実測時速のための稼働記録（機種タブを開いたときに1回だけ読む）
+let SPEED_RECORDS = null, speedLoading = false;
+async function loadSpeedRecords() {
+  if (SPEED_RECORDS || speedLoading) return;
+  speedLoading = true;
+  try {
+    const res = await gasFetch(GAS_URL + '?action=records', { redirect: 'follow' });
+    const data = await res.json();
+    if (data && data.success && Array.isArray(data.records)) SPEED_RECORDS = data.records;
+  } catch (e) {
+    // 読めないときは「—」のまま（次に機種タブを開いたときに読み直す）
+  } finally {
+    speedLoading = false;
+    renderMachineSpeed();
+  }
+}
+function renderMachineSpeed() {
+  const valEl = document.getElementById('jisoku-actual');
+  const lineEl = document.getElementById('jisoku-line');
+  if (!valEl || !lineEl) return;
+  const sp = (S.kishu && SPEED_RECORDS) ? calcMachineSpeed(SPEED_RECORDS, S.kishu.name) : null;
+  valEl.textContent = sp ? Math.round(sp.speed) + '回' : (SPEED_RECORDS ? '記録なし' : '—');
+  lineEl.hidden = !sp;
+  if (sp) lineEl.textContent = '通常回転 ' + fmtN(Math.round(sp.rot)) + '回 ÷ ' + sp.hours.toFixed(1) + '時間（' + sp.count + '回分）';
+}
+
 function switchTab(name) {
+  if (name === 'border') { loadSpeedRecords(); renderMachineSpeed(); }
   ['main','hit','border','setting'].forEach(t => {
     document.getElementById('tab-'+t).classList.toggle('active', t===name);
     document.getElementById('nav-'+t).classList.toggle('active', t===name);
@@ -2015,6 +2061,7 @@ function recalc() {
   setText('disp-spec-heiren', k.heiren.toFixed(2)+'連');
   setText('disp-spec-total1r', k.total1R ? '1/'+k.total1R.toFixed(1) : '—');
   setText('disp-spec-jikan',  k.jikan ? k.jikan+'回' : '—');
+  renderMachineSpeed();
   setText('disp-spec-kankin', '換金率 '+(100/kokan).toFixed(1)+'円');
   setText('disp-border',      border ? border.toFixed(1)+' 回/千円' : '—');
   setText('disp-border-rot',  kaitenRitsu ? kaitenRitsu.toFixed(1)+' 回/千円' : '—');
