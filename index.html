@@ -11,12 +11,13 @@
 /* 構成: 上＝読む計器、下＝親指で触る入力。灯りの色は状態（期待時給の段階・プラスマイナス）だけに使う */
 :root{
   color-scheme:dark;
-  --ink:#17191c;      /* 地：墨 */
-  --panel:#1f2226;    /* 面：鉄 */
-  --rule:#2d3137;     /* 罫 */
-  --fg:#c9c6be;       /* 文字：灰白 */
-  --fg2:#8c8980;      /* 補助 */
-  --fg3:#5f5d58;      /* 消灯 */
+  --ink:#16181b;      /* 地：墨 */
+  --panel:#1d2024;    /* 面：鉄（地との差は控えめ。囲みより罫で区切る） */
+  --rule:#2b2f35;     /* 罫 */
+  --line:#3a3f46;     /* 入力の下線（触れる場所の目印） */
+  --fg:#dcd8ce;       /* 文字：灰白（数字はこれ） */
+  --fg2:#9a968c;      /* 補助・ラベル */
+  --fg3:#64615b;      /* 消灯・未入力 */
   --t0:#a9524a;       /* 見送り・マイナス：弁柄 */
   --t1:#b39243;       /* 及第：黄土 */
   --t2:#7fa36a;       /* 合格・プラス：若竹 */
@@ -27,7 +28,7 @@
   --r-panel:10px;--r-ctl:7px;
 }
 /* 設定「さらに暗く」でトークンだけ差し替える */
-.night{--fg:#9e9b94;--fg2:#6f6c66;--fg3:#45443f;--panel:#1a1c1f;--rule:#26292d;--t0:#7f4540;--t1:#86703a;--t2:#5f7a52;--t3:#4a6b8a;--t4:#b8b3a5;}
+.night{--fg:#a9a59d;--fg2:#75726b;--fg3:#4a4843;--panel:#1a1c1f;--rule:#26292d;--line:#30343a;--t0:#7f4540;--t1:#86703a;--t2:#5f7a52;--t3:#4a6b8a;--t4:#b8b3a5;}
 
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 [hidden]{display:none!important;}
@@ -44,7 +45,7 @@ button,input,select,textarea{font:inherit;color:inherit;}
 .session{position:sticky;top:0;z-index:50;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 2px;font-size:12px;color:var(--fg2);background:var(--ink);border-bottom:1px solid var(--rule);}
 .session .sub{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .session .sub b{color:var(--fg);}
-.ghost{background:none;border:1px solid var(--rule);border-radius:var(--r-ctl);padding:9px 12px;font-size:12px;color:var(--fg2);cursor:pointer;flex-shrink:0;min-height:40px;}
+.ghost{background:none;border:0;border-radius:var(--r-ctl);padding:9px 4px 9px 12px;font-size:12px;color:var(--fg2);cursor:pointer;flex-shrink:0;min-height:40px;}
 
 /* タブ・ガード */
 .tab-content{display:none;}
@@ -59,18 +60,26 @@ button,input,select,textarea{font:inherit;color:inherit;}
 .group{background:var(--panel);border-radius:var(--r-panel);padding:12px;display:grid;gap:8px;}
 .group h2,.fold summary{margin:0;font-size:12px;font-weight:700;color:var(--fg2);display:flex;justify-content:space-between;align-items:center;gap:8px;}
 .group h2 span,.fold summary span{font-weight:400;color:var(--fg3);}
-.inputs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;}
+.inputs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 14px;align-items:start;}
 .field{display:grid;gap:3px;min-width:0;}
 .field.wide{grid-column:1/-1;}
-.field label{font-size:11px;color:var(--fg2);}
-.field input,.field select,.field textarea{width:100%;background:var(--ink);border:1px solid var(--rule);border-radius:var(--r-ctl);padding:9px;font-size:15px;min-height:40px;}
-.field input.n{font-family:var(--font-num);font-size:18px;font-variant-numeric:tabular-nums;text-align:right;}
+.field label{font-size:11px;color:var(--fg2);line-height:16px;min-height:16px;display:flex;align-items:center;gap:6px;white-space:nowrap;overflow:hidden;}
+.field input,.field select,.field textarea{width:100%;background:transparent;border:0;border-bottom:1px solid var(--line);border-radius:0;padding:8px 2px 6px;font-size:16px;min-height:42px;color:var(--fg);}
+.field input.n{font-family:var(--font-num);font-size:20px;font-weight:500;font-variant-numeric:tabular-nums;text-align:right;}
 .field input::placeholder,.field textarea::placeholder{color:var(--fg3);}
-.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--fg2);outline:none;}
+.field input:focus,.field select:focus,.field textarea:focus{border-bottom-color:var(--fg);outline:none;}
+.field select{appearance:none;-webkit-appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--fg2) 50%),linear-gradient(135deg,var(--fg2) 50%,transparent 50%);background-position:calc(100% - 10px) 55%,calc(100% - 5px) 55%;background-size:5px 5px;background-repeat:no-repeat;padding-right:20px;}
+.field select option{background:var(--panel);color:var(--fg);}
 .field textarea{resize:none;line-height:1.6;overflow:hidden;font-size:14px;}
-.field .auto{background:var(--panel);border:1px solid var(--rule);border-radius:var(--r-ctl);padding:10px 9px;font-size:15px;color:var(--fg);min-height:40px;display:flex;align-items:center;}
+/* 数字欄のスピナー（上下の矢印）は使わないので消す */
+input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0;}
+input[type=number]{-moz-appearance:textfield;appearance:textfield;}
+/* 値がまだ無いところは小さく沈める */
+.is-empty{color:var(--fg3)!important;}
+.fig .v.is-empty,.rate .big.is-empty{font-size:20px;}
+.field .auto{border-bottom:1px solid var(--rule);padding:10px 2px 6px;font-size:15px;color:var(--fg);min-height:42px;display:flex;align-items:center;}
 .yen{position:relative;}
-.yen::before{content:'¥';position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--fg3);font-family:var(--font-num);font-size:15px;}
+.yen::before{content:'¥';position:absolute;left:2px;top:50%;transform:translateY(-50%);color:var(--fg3);font-family:var(--font-num);font-size:15px;}
 .yen input{padding-left:24px;}
 .note{font-size:11px;color:var(--fg3);}
 /* 既存の清算計算機の入力欄が使うクラス */
@@ -87,7 +96,7 @@ button,input,select,textarea{font:inherit;color:inherit;}
 .chip-select{display:flex;flex-wrap:wrap;gap:7px;}
 .badge{display:inline-flex;align-items:center;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;border:1px solid currentColor;}
 .badge.up{color:var(--t2);} .badge.dn{color:var(--t0);} .badge.neu{color:var(--fg2);} .badge.info{color:var(--fg2);}
-.badge-manual,.badge-auto{font-size:10px;font-weight:400;padding:1px 6px;border-radius:999px;border:1px solid var(--rule);color:var(--fg3);}
+.badge-manual,.badge-auto{font-size:10px;font-weight:400;padding:0;border:0;color:var(--fg3);line-height:16px;}
 .fold{background:var(--panel);border-radius:var(--r-panel);padding:12px;}
 .fold summary{cursor:pointer;list-style:none;min-height:40px;}
 .fold summary::-webkit-details-marker{display:none;}
@@ -103,12 +112,12 @@ button,input,select,textarea{font:inherit;color:inherit;}
 .meter{display:grid;gap:6px;padding:4px 2px;}
 .meter-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px;font-size:12px;color:var(--fg2);}
 .tier{font-size:13px;font-weight:700;color:var(--tier-color,var(--fg2));}
-.kitai{font-weight:500;font-size:44px;line-height:1;letter-spacing:-.01em;color:var(--num-color,var(--fg));display:flex;align-items:baseline;gap:6px;overflow-wrap:anywhere;}
+.kitai{font-weight:600;font-size:46px;line-height:1;letter-spacing:-.01em;color:var(--num-color,var(--fg));display:flex;align-items:baseline;gap:6px;overflow-wrap:anywhere;}
 .kitai small{font-family:var(--font-text);font-size:12px;color:var(--fg2);font-weight:400;}
 .gauge{position:relative;height:14px;margin-top:4px;}
-.bands{position:absolute;inset:4px 0;display:flex;gap:2px;}
-.band{height:100%;border-radius:1px;background:var(--fg3);opacity:.35;}
-.band.lit{opacity:1;}
+.bands{position:absolute;inset:4px 0;display:flex;gap:3px;}
+.band{height:100%;border-radius:1px;background:transparent;box-shadow:inset 0 0 0 1px var(--line);}
+.band.lit{box-shadow:none;}
 .needle{position:absolute;top:0;bottom:0;}
 .needle.now{width:2px;margin-left:-1px;background:var(--fg);}
 .needle.full{border-left:2px dotted var(--fg2);}
@@ -121,12 +130,15 @@ button,input,select,textarea{font:inherit;color:inherit;}
 .legend i{display:inline-block;width:10px;vertical-align:middle;margin-right:4px;}
 .legend .a{border-top:2px solid var(--fg);} .legend .b{border-top:2px dotted var(--fg2);}
 
+/* 値がまだ無いときの期待時給 */
+.kitai-empty{font-size:13px;color:var(--fg2);padding:10px 0 4px;}
 /* 時間（入れ忘れ防止のため結果の直下） */
 .times{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:10px 0;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);}
 .time{display:grid;gap:3px;min-width:0;}
 .time>label{font-size:11px;color:var(--fg2);}
 .time .row{display:flex;align-items:center;gap:6px;min-width:0;}
-.time input[type=time]{flex:1;min-width:0;background:var(--ink);border:1px solid var(--rule);border-radius:var(--r-ctl);padding:8px;font-size:16px;min-height:40px;}
+.time input[type=time]{flex:1;min-width:0;background:transparent;border:0;border-bottom:1px solid var(--line);border-radius:0;padding:8px 2px 6px;font-family:var(--font-num);font-size:20px;font-weight:500;min-height:42px;color:var(--fg);}
+.time input[type=time]:focus{border-bottom-color:var(--fg);outline:none;}
 .time .empty{color:var(--t1);font-size:13px;flex-shrink:0;}
 .now-btn{background:var(--panel);border:1px solid var(--rule);border-radius:var(--r-ctl);padding:8px 10px;font-size:12px;color:var(--fg);cursor:pointer;flex-shrink:0;min-height:40px;}
 .times .dur{grid-column:1/-1;text-align:right;font-size:12px;color:var(--fg2);}
@@ -259,6 +271,7 @@ button,input,select,textarea{font:inherit;color:inherit;}
     <section class="meter" id="kitai-meter" aria-label="期待時給">
       <div class="meter-head"><span>期待時給（実力・持ち玉100%）</span><span class="tier" id="kpi-kitai-sub">—</span></div>
       <div class="kitai num"><span id="kpi-kitai">—</span><small>円/時</small></div>
+      <div class="kitai-empty" id="kitai-empty">回転数と投資を入れると出ます</div>
       <div class="gauge" aria-hidden="true">
         <div class="bands" id="kitai-bands"></div>
         <div class="needle full" id="kitai-needle-full"></div>
@@ -1940,9 +1953,11 @@ function recalc() {
   // 表示（ここは計算結果を画面に書き込むだけ。計算式はここより上で確定済み）
   // =====================
   // 収支（下に時給・差玉）
-  setFg('kpi-kosshi', fmt(kosshi), kosshi);
+  // 投資も回収もまだ無いときは「+0」ではなく未入力として沈める（表示だけ）
+  const hasMoney = invest > 0 || investBall > 0 || recover > 0;
+  setFg('kpi-kosshi', hasMoney ? fmt(kosshi) : '—', hasMoney ? kosshi : 0);
   setFg('kpi-jikyu', jikyu !== null ? fmt(jikyu) : '—', jikyu === null ? 0 : jikyu);
-  setFg('kpi-sagitama', fmt(Math.round(sagitama)) + '玉', sagitama);
+  setFg('kpi-sagitama', hasMoney ? fmt(Math.round(sagitama)) + '玉' : '—', hasMoney ? sagitama : 0);
   // 仕事量（下に時給・運）
   setFg('kpi-shigoto', shigoto !== null ? fmt(shigoto) : '—', shigoto === null ? 0 : shigoto);
   setText('kpi-shigoto-sub', shigotoJikyu !== null ? fmt(shigotoJikyu) : '—');
@@ -2626,8 +2641,17 @@ function renderKitaiMeter(full, now, mochiPct) {
   const tier = kitaiTier(full, t);
   const style = kitaiTierStyle(tier);
 
-  if (numEl) numEl.textContent = (full !== null && full !== undefined && Number.isFinite(Number(full))) ? fmt(full) : '—';
-  if (tierEl) tierEl.textContent = style.label;
+  const hasFull = full !== null && full !== undefined && Number.isFinite(Number(full));
+  if (numEl) numEl.textContent = hasFull ? fmtN(Math.round(full)) : '—';
+  if (tierEl) tierEl.textContent = hasFull ? style.label : '';
+  // 値が無いときは、大きな「—」の代わりに何を入れると出るかを示す
+  const numRow = numEl ? numEl.closest('.kitai') : null;
+  const emptyEl = document.getElementById('kitai-empty');
+  const legendEl = meter.querySelector('.legend');
+  if (numRow) numRow.hidden = !hasFull;
+  if (emptyEl) emptyEl.hidden = hasFull;
+  if (legendEl) legendEl.hidden = !hasFull;
+  if (needFull) needFull.hidden = !hasFull;
   meter.style.setProperty('--tier-color', style.color);
   meter.style.setProperty('--num-color', style.number);
 
@@ -2646,7 +2670,7 @@ function renderKitaiMeter(full, now, mochiPct) {
   }
   if (scaleEl) {
     scaleEl.replaceChildren();
-    const labels = ['見送り', fmt(t.warn), fmt(t.ok), fmt(t.good), fmt(t.great)];
+    const labels = ['見送り', fmtN(t.warn), fmtN(t.ok), fmtN(t.good), fmtN(t.great)];
     geo.edges.slice(0, -1).forEach((edge, i) => {
       const s = document.createElement('span');
       s.textContent = labels[i];
@@ -2694,7 +2718,9 @@ function el(id, text, cls) {
   if (cls !== undefined) e.className = cls;
 }
 function setText(id, text) {
-  const e = document.getElementById(id); if (e) e.textContent = text;
+  const e = document.getElementById(id); if (!e) return;
+  e.textContent = text;
+  e.classList.toggle('is-empty', text === '—');
 }
 function fmtN(n) { return Math.round(n).toLocaleString('ja-JP'); }
 function fmt(n)  { const r = Math.round(n); return (r>=0?'+':'')+r.toLocaleString('ja-JP'); }
@@ -2705,6 +2731,7 @@ function setFg(id, text, val) {
   const e = document.getElementById(id);
   if (!e) return;
   e.textContent = text;
+  e.classList.toggle('is-empty', text === '—');
   e.classList.remove('plus');
   e.classList.remove('minus');
   if (val > 0) e.classList.add('plus');
