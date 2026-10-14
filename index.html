@@ -3,670 +3,602 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>PACHINKO LOG</title>
+<title>パチンコ記録</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&family=Saira+Semi+Condensed:wght@400;500;600&display=swap">
 <style>
-:root {
-  --bg:#080c10;--surface:#0d1117;--surface2:#141b24;--surface3:#1c2530;
-  --border:#1e2d3d;--accent:#00d4ff;--green:#39ff6e;--warn:#ffcc00;
-  --red:#ff4466;--text:#e2e8f0;--text2:#8899aa;--text3:#607080;
-  --radius:12px;--radius-sm:8px;
+/* 構成: 上＝読む計器、下＝親指で触る入力。灯りの色は状態（期待時給の段階・プラスマイナス）だけに使う */
+:root{
+  color-scheme:dark;
+  --ink:#17191c;      /* 地：墨 */
+  --panel:#1f2226;    /* 面：鉄 */
+  --rule:#2d3137;     /* 罫 */
+  --fg:#c9c6be;       /* 文字：灰白 */
+  --fg2:#8c8980;      /* 補助 */
+  --fg3:#5f5d58;      /* 消灯 */
+  --t0:#a9524a;       /* 見送り・マイナス：弁柄 */
+  --t1:#b39243;       /* 及第：黄土 */
+  --t2:#7fa36a;       /* 合格・プラス：若竹 */
+  --t3:#5f8db8;       /* 良台：藍 */
+  --t4:#ede7d6;       /* 神台：白金 */
+  --font-text:'BIZ UDPGothic','Hiragino Sans','Noto Sans JP',sans-serif;
+  --font-num:'Saira Semi Condensed','DIN Alternate','Roboto Condensed',sans-serif;
+  --r-panel:10px;--r-ctl:7px;
 }
+/* 設定「さらに暗く」でトークンだけ差し替える */
+.night{--fg:#9e9b94;--fg2:#6f6c66;--fg3:#45443f;--panel:#1a1c1f;--rule:#26292d;--t0:#7f4540;--t1:#86703a;--t2:#5f7a52;--t3:#4a6b8a;--t4:#b8b3a5;}
+
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
-body{background:var(--bg);color:var(--text);font-family:'Noto Sans JP',sans-serif;min-height:100vh;max-width:430px;margin:0 auto;overflow-x:hidden;}
-body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(0,212,255,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,212,255,0.03) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0;}
-.app{position:relative;z-index:1;padding-bottom:80px;}
+[hidden]{display:none!important;}
+html,body{background:var(--ink);color:var(--fg);}
+body{font-family:var(--font-text);font-size:14px;line-height:1.5;min-height:100vh;max-width:430px;margin:0 auto;padding:0 14px 84px;overflow-x:hidden;}
+button,input,select,textarea{font:inherit;color:inherit;}
+:focus-visible{outline:2px solid var(--t3);outline-offset:2px;}
+.num{font-family:var(--font-num);font-variant-numeric:tabular-nums;}
+.plus{color:var(--t2);} .minus{color:var(--t0);}
+.pos{color:var(--t2);} .neg{color:var(--t0);}
+.app{display:flex;flex-direction:column;gap:12px;padding-top:12px;}
 
-/* Header */
-.header{padding:14px 16px 12px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);background:rgba(8,12,16,0.95);backdrop-filter:blur(10px);position:sticky;top:0;z-index:100;}
-.app-title{font-family:'Rajdhani',sans-serif;font-size:18px;font-weight:700;letter-spacing:3px;color:var(--accent);}
-.session-info{font-size:11px;color:var(--text2);font-family:'JetBrains Mono',monospace;margin-top:2px;}
-.status-dot{width:7px;height:7px;background:var(--green);border-radius:50%;box-shadow:0 0 7px var(--green);animation:pulse 2s infinite;margin-right:5px;display:inline-block;}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+/* ヘッダー（店・機種・打ち手・台番号＋更新） */
+.session{position:sticky;top:0;z-index:50;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 2px;font-size:12px;color:var(--fg2);background:var(--ink);border-bottom:1px solid var(--rule);}
+.session .sub{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.session .sub b{color:var(--fg);}
+.ghost{background:none;border:1px solid var(--rule);border-radius:var(--r-ctl);padding:9px 12px;font-size:12px;color:var(--fg2);cursor:pointer;flex-shrink:0;min-height:40px;}
 
-/* Tabs */
-.tab-content{display:none;padding:14px 14px 0;}
-.tab-content.active{display:block;}
+/* タブ・ガード */
+.tab-content{display:none;}
+.tab-content.active{display:flex;flex-direction:column;gap:12px;}
+.guard{display:none;}
+.guard.show{display:grid;gap:12px;justify-items:center;text-align:center;padding:48px 16px;color:var(--fg2);cursor:pointer;}
+.guard svg{width:34px;height:34px;stroke:var(--fg3);fill:none;stroke-width:1.5;}
+.guard-msg{font-size:14px;line-height:1.8;}
+.guard-action{border:1px solid var(--rule);border-radius:var(--r-ctl);padding:10px 18px;font-size:13px;color:var(--fg);}
 
-/* Section */
-.section{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:10px;}
-.section-header{display:flex;align-items:center;gap:8px;margin-bottom:12px;}
-.section-label{font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:600;letter-spacing:2px;color:var(--text2);text-transform:uppercase;white-space:nowrap;}
-.section-line{flex:1;height:1px;background:var(--border);}
+/* 共通部品 */
+.group{background:var(--panel);border-radius:var(--r-panel);padding:12px;display:grid;gap:8px;}
+.group h2,.fold summary{margin:0;font-size:12px;font-weight:700;color:var(--fg2);display:flex;justify-content:space-between;align-items:center;gap:8px;}
+.group h2 span,.fold summary span{font-weight:400;color:var(--fg3);}
+.inputs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;}
+.field{display:grid;gap:3px;min-width:0;}
+.field.wide{grid-column:1/-1;}
+.field label{font-size:11px;color:var(--fg2);}
+.field input,.field select,.field textarea{width:100%;background:var(--ink);border:1px solid var(--rule);border-radius:var(--r-ctl);padding:9px;font-size:15px;min-height:40px;}
+.field input.n{font-family:var(--font-num);font-size:18px;font-variant-numeric:tabular-nums;text-align:right;}
+.field input::placeholder,.field textarea::placeholder{color:var(--fg3);}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--fg2);outline:none;}
+.field textarea{resize:none;line-height:1.6;overflow:hidden;font-size:14px;}
+.field .auto{background:var(--panel);border:1px solid var(--rule);border-radius:var(--r-ctl);padding:10px 9px;font-size:15px;color:var(--fg);min-height:40px;display:flex;align-items:center;}
+.yen{position:relative;}
+.yen::before{content:'¥';position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--fg3);font-family:var(--font-num);font-size:15px;}
+.yen input{padding-left:24px;}
+.note{font-size:11px;color:var(--fg3);}
+/* 既存の清算計算機の入力欄が使うクラス */
+.input-field{background:var(--ink);border:1px solid var(--rule);border-radius:var(--r-ctl);padding:8px 9px;color:var(--fg);width:100%;min-height:38px;}
+.input-field:focus{border-color:var(--fg2);outline:none;}
+.stock-balance-note{font-size:11px;color:var(--fg3);line-height:1.4;min-height:1.4em;}
+.stock-balance-note.warn{color:var(--t1);}
+.stock-balance-note.error{color:var(--t0);}
 
-/* KPI */
-.kpi-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;}
-.kpi-card{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;position:relative;overflow:hidden;}
-.kpi-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--text3);}
-.kpi-card.pos::before{background:var(--green);}
-.kpi-card.neg::before{background:var(--red);}
-.kpi-card.info::before{background:var(--accent);}
-.kpi-card.warn::before{background:var(--warn);}
-.kpi-label{font-size:9px;color:var(--text2);letter-spacing:1px;text-transform:uppercase;font-family:'JetBrains Mono',monospace;margin-bottom:4px;}
-.kpi-value{font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:700;line-height:1.2;color:var(--text2);}
-.kpi-value.pos{color:var(--green);}
-.kpi-value.neg{color:var(--red);}
-.kpi-value.info{color:var(--accent);}
-.kpi-value.warn{color:var(--warn);}
-.kpi-sub{font-size:9px;color:var(--text2);margin-top:3px;font-family:'JetBrains Mono',monospace;}
-
-/* Wide KPI card (収支+時給) */
-.kpi-wide{grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;gap:0;}
-.kpi-wide-left{padding:10px 12px;border-right:1px solid var(--border);}
-.kpi-wide-right{padding:10px 12px;}
-
-/* 期待時給 big card */
-.kitai-card{background:linear-gradient(135deg,rgba(0,212,255,0.08),transparent);border:1px solid rgba(0,212,255,0.25);border-radius:var(--radius-sm);padding:14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;}
-.kitai-val{font-family:'JetBrains Mono',monospace;font-size:28px;font-weight:700;color:var(--accent);}
-
-/* Inputs */
-.input-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
-.input-group{display:flex;flex-direction:column;gap:5px;}
-.input-label{font-size:9px;color:var(--text2);letter-spacing:1px;text-transform:uppercase;font-family:'JetBrains Mono',monospace;}
-.input-field{background:var(--surface3);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);padding:9px 10px;font-size:16px;font-family:'JetBrains Mono',monospace;font-weight:700;width:100%;outline:none;transition:border-color 0.2s;-webkit-appearance:none;}
-.input-field:focus{border-color:var(--accent);box-shadow:0 0 0 2px rgba(0,212,255,0.1);}
-.input-field::placeholder{color:var(--text3);font-weight:400;}
-.input-field.textarea{resize:vertical;min-height:96px;font-family:'Noto Sans JP',sans-serif;font-weight:400;line-height:1.6;}
-/* 手入力 vs 自動計算 視覚区別 */
-.input-label{font-size:9px;color:var(--text2);letter-spacing:1px;margin-bottom:5px;display:flex;align-items:center;gap:5px;}
-.badge-manual{font-size:8px;padding:1px 5px;border-radius:3px;background:rgba(0,212,255,0.15);color:var(--accent);border:1px solid rgba(0,212,255,0.3);letter-spacing:0;font-family:'JetBrains Mono',monospace;}
-.badge-auto{font-size:8px;padding:1px 5px;border-radius:3px;background:rgba(57,255,110,0.12);color:var(--green);border:1px solid rgba(57,255,110,0.3);letter-spacing:0;font-family:'JetBrains Mono',monospace;}
-.input-field.is-manual{border-color:rgba(0,212,255,0.35);}
-.input-field.is-manual:focus{border-color:var(--accent);box-shadow:0 0 0 2px rgba(0,212,255,0.15);}
-/* 終了時貯玉が開始時貯玉より多いときの補足（通常時は非表示） */
-.stock-clamp-note{display:none;font-size:9px;color:var(--warn);font-family:'JetBrains Mono',monospace;letter-spacing:0;line-height:1.4;}
-.stock-balance-note{font-size:10px;color:var(--text2);line-height:1.5;min-height:1.5em;}
-.stock-balance-note.warn{color:var(--warn);}
-.stock-balance-note.error{color:var(--red);}
-.auto-display{background:rgba(57,255,110,0.05);border:1px solid rgba(57,255,110,0.2);border-radius:var(--radius-sm);padding:9px 10px;font-size:16px;font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--green);width:100%;}
-select.input-field{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%238899aa' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:28px;}
-.cur-wrap{position:relative;}
-.cur-wrap .cur{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text2);font-family:'JetBrains Mono',monospace;font-size:13px;pointer-events:none;}
-.cur-wrap .input-field{padding-left:24px;}
-
-/* Rotation */
-.rotation-display{background:linear-gradient(135deg,rgba(0,212,255,0.05),transparent);border:1px solid rgba(0,212,255,0.2);border-radius:var(--radius-sm);padding:12px;margin-bottom:10px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;text-align:center;}
-.rot-val{font-family:'JetBrains Mono',monospace;font-size:19px;font-weight:700;color:var(--accent);}
-.rot-label{font-size:9px;color:var(--text2);letter-spacing:1px;margin-top:2px;text-transform:uppercase;}
-
-/* Summary rows */
-.summary-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;}
-.summary-row:last-child{border-bottom:none;}
-.summary-row .lbl{color:var(--text2);font-size:12px;}
-.summary-row .val{font-family:'JetBrains Mono',monospace;font-weight:700;}
-
-/* Badges */
-.badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:4px;font-size:11px;font-family:'JetBrains Mono',monospace;font-weight:700;}
-.badge.up{background:rgba(57,255,110,0.1);color:var(--green);}
-.badge.dn{background:rgba(255,68,102,0.1);color:var(--red);}
-.badge.info{background:rgba(0,212,255,0.1);color:var(--accent);}
-.badge.neu{background:rgba(136,153,170,0.1);color:var(--text2);}
-
-/* Hit list */
-.hit-list{display:flex;flex-direction:column;gap:8px;margin-bottom:8px;}
-.hit-row{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;}
-.hit-row-top{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
-.hit-num{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text3);min-width:18px;}
-.hit-type-badge{font-size:10px;color:var(--text2);flex:1;}
-.hit-total{font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:700;color:var(--green);}
-.hit-del{background:rgba(255,68,102,0.1);border:1px solid rgba(255,68,102,0.2);color:var(--red);padding:4px 10px;border-radius:4px;font-size:11px;cursor:pointer;font-family:'Rajdhani',sans-serif;font-weight:600;flex-shrink:0;}
-.round-chips{display:flex;flex-wrap:wrap;gap:5px;}
-.round-chip{background:var(--surface3);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--text2);}
-.add-hit-btn{width:100%;background:rgba(0,212,255,0.06);border:1px dashed rgba(0,212,255,0.3);border-radius:var(--radius-sm);color:var(--accent);padding:12px;font-size:12px;font-family:'Rajdhani',sans-serif;font-weight:600;letter-spacing:2px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;}
-
-/* Modal */
-.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:300;backdrop-filter:blur(4px);align-items:flex-end;justify-content:center;}
-.modal-overlay.show{display:flex;}
-/* 確認ダイアログは当たりモーダルより前面に出す（後ろに隠れて古い警告が残る不具合の対策） */
-#dialogModal{z-index:400;}
-/* 合言葉入力は最前面 */
-#tokenModal{z-index:500;}
-.modal{background:var(--surface);border:1px solid var(--border);border-top:2px solid var(--accent);border-radius:var(--radius) var(--radius) 0 0;padding:20px 16px 36px;width:100%;max-width:430px;max-height:88vh;overflow-y:auto;position:relative;}
-.modal-title{font-family:'Rajdhani',sans-serif;font-size:16px;font-weight:700;letter-spacing:2px;color:var(--accent);margin-bottom:4px;}
-.modal-subtitle{font-size:11px;color:var(--text2);margin-bottom:16px;}
-.modal-close{position:absolute;right:16px;top:16px;background:none;border:none;color:var(--text2);font-size:22px;cursor:pointer;line-height:1;padding:4px;}
-.round-input-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;}
-.round-input-item{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px;}
-.round-input-name{font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--accent);margin-bottom:4px;font-weight:700;}
-.round-input-sub{font-size:9px;color:var(--text3);margin-bottom:8px;}
-.round-counter{display:flex;align-items:center;gap:8px;justify-content:center;}
-.counter-btn{background:var(--surface3);border:1px solid var(--border);color:var(--text);width:34px;height:34px;border-radius:6px;font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;line-height:1;}
-.counter-btn:active{background:rgba(0,212,255,0.15);border-color:var(--accent);}
-.counter-val{font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:700;color:var(--text);min-width:30px;text-align:center;}
-.auto-calc-row{background:rgba(57,255,110,0.05);border:1px solid rgba(57,255,110,0.15);border-radius:var(--radius-sm);padding:10px 12px;display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;}
-.auto-calc-label{font-size:10px;color:var(--text2);}
-.auto-calc-val{font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:700;color:var(--green);}
-.modal-confirm-btn{width:100%;background:linear-gradient(135deg,rgba(0,212,255,0.2),rgba(0,212,255,0.05));border:1px solid rgba(0,212,255,0.4);border-radius:var(--radius);color:var(--accent);padding:14px;font-size:13px;font-family:'Rajdhani',sans-serif;font-weight:700;letter-spacing:3px;cursor:pointer;}
-
-/* Border tab */
-.ratio-label-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
-.ratio-title{font-size:11px;color:var(--text2);font-family:'JetBrains Mono',monospace;}
-.ratio-val-display{font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:700;color:var(--warn);}
-.ratio-slider{width:100%;-webkit-appearance:none;height:4px;border-radius:2px;background:var(--surface3);outline:none;margin-bottom:8px;}
-.ratio-slider::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;background:var(--warn);cursor:pointer;box-shadow:0 0 8px rgba(255,204,0,0.4);}
-.ratio-presets{display:flex;gap:6px;flex-wrap:wrap;}
-.ratio-preset{padding:5px 12px;border-radius:16px;border:1px solid var(--border);background:var(--surface3);color:var(--text2);font-size:12px;cursor:pointer;font-family:'JetBrains Mono',monospace;}
-.ratio-preset.active{background:rgba(255,204,0,0.15);border-color:var(--warn);color:var(--warn);}
-
-/* Settings */
+/* チップ・バッジ・折りたたみ */
+.chips{display:flex;gap:6px;flex-wrap:wrap;}
+.chip{background:none;border:1px solid var(--rule);border-radius:999px;padding:9px 14px;font-size:13px;color:var(--fg2);cursor:pointer;min-height:40px;}
+.chip.selected,.chip.active,.chip[aria-pressed="true"]{border-color:var(--fg2);color:var(--fg);background:var(--ink);}
 .chip-select{display:flex;flex-wrap:wrap;gap:7px;}
-.chip{padding:6px 14px;border-radius:20px;border:1px solid var(--border);background:var(--surface3);color:var(--text2);font-size:13px;cursor:pointer;transition:all 0.15s;}
-.chip.selected{background:rgba(0,212,255,0.15);border-color:var(--accent);color:var(--accent);}
-.setting-row{margin-bottom:16px;}
-.auto-badge{display:inline-flex;align-items:center;padding:2px 7px;border-radius:4px;font-size:9px;font-family:'JetBrains Mono',monospace;background:rgba(57,255,110,0.1);color:var(--green);border:1px solid rgba(57,255,110,0.2);margin-left:6px;}
-.action-btn{width:100%;border-radius:var(--radius);padding:15px;font-size:15px;font-family:'Rajdhani',sans-serif;font-weight:700;letter-spacing:3px;cursor:pointer;margin-top:10px;text-transform:uppercase;}
-.action-btn.send{background:linear-gradient(135deg,rgba(0,212,255,0.2),rgba(0,212,255,0.05));border:1px solid rgba(0,212,255,0.4);color:var(--accent);box-shadow:0 0 20px rgba(0,212,255,0.1);}
-.action-btn.reset{background:rgba(255,68,102,0.08);border:1px solid rgba(255,68,102,0.3);color:var(--red);}
-/* 報酬確定ボタン・結果パネルはAppBに移動したため削除 */
+.badge{display:inline-flex;align-items:center;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;border:1px solid currentColor;}
+.badge.up{color:var(--t2);} .badge.dn{color:var(--t0);} .badge.neu{color:var(--fg2);} .badge.info{color:var(--fg2);}
+.badge-manual,.badge-auto{font-size:10px;font-weight:400;padding:1px 6px;border-radius:999px;border:1px solid var(--rule);color:var(--fg3);}
+.fold{background:var(--panel);border-radius:var(--r-panel);padding:12px;}
+.fold summary{cursor:pointer;list-style:none;min-height:40px;}
+.fold summary::-webkit-details-marker{display:none;}
+.fold summary::after{content:'開く';font-weight:400;font-size:11px;color:var(--fg3);}
+.fold[open] summary::after{content:'閉じる';}
+.fold .inner{display:grid;gap:8px;margin-top:10px;}
+.kv{display:grid;grid-template-columns:1fr auto;gap:6px 12px;font-size:13px;margin:0;}
+.kv dt{color:var(--fg2);}
+.kv dd{margin:0;text-align:right;overflow-wrap:anywhere;}
+.kv dd.num{font-family:var(--font-num);font-variant-numeric:tabular-nums;font-size:15px;}
 
-/* Guard */
-.guard{display:none;flex-direction:column;align-items:center;justify-content:center;padding:50px 20px;text-align:center;gap:12px;cursor:pointer;}
-.guard.show{display:flex;}
-.guard-icon{font-size:44px;}
-.guard-msg{color:var(--text2);font-size:14px;line-height:1.8;}
-.guard-action{background:rgba(0,212,255,0.1);border:1px solid rgba(0,212,255,0.3);color:var(--accent);padding:8px 20px;border-radius:20px;font-size:13px;font-family:'Rajdhani',sans-serif;font-weight:700;letter-spacing:2px;}
+/* 期待時給メーター */
+.meter{display:grid;gap:6px;padding:4px 2px;}
+.meter-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px;font-size:12px;color:var(--fg2);}
+.tier{font-size:13px;font-weight:700;color:var(--tier-color,var(--fg2));}
+.kitai{font-weight:500;font-size:44px;line-height:1;letter-spacing:-.01em;color:var(--num-color,var(--fg));display:flex;align-items:baseline;gap:6px;overflow-wrap:anywhere;}
+.kitai small{font-family:var(--font-text);font-size:12px;color:var(--fg2);font-weight:400;}
+.gauge{position:relative;height:14px;margin-top:4px;}
+.bands{position:absolute;inset:4px 0;display:flex;gap:2px;}
+.band{height:100%;border-radius:1px;background:var(--fg3);opacity:.35;}
+.band.lit{opacity:1;}
+.needle{position:absolute;top:0;bottom:0;}
+.needle.now{width:2px;margin-left:-1px;background:var(--fg);}
+.needle.full{border-left:2px dotted var(--fg2);}
+.scale{position:relative;height:14px;font-size:10px;color:var(--fg3);}
+.scale span{position:absolute;transform:translateX(-50%);white-space:nowrap;}
+.scale span:first-child{transform:none;}
+.now-line{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:12px;color:var(--fg2);}
+.now-line .num{font-size:18px;color:var(--fg);}
+.legend{display:flex;gap:12px;font-size:11px;color:var(--fg3);}
+.legend i{display:inline-block;width:10px;vertical-align:middle;margin-right:4px;}
+.legend .a{border-top:2px solid var(--fg);} .legend .b{border-top:2px dotted var(--fg2);}
 
-/* Save indicator */
-.save-indicator{position:fixed;top:70px;right:16px;background:rgba(57,255,110,0.15);border:1px solid rgba(57,255,110,0.3);border-radius:6px;padding:4px 10px;font-size:10px;color:var(--green);font-family:'JetBrains Mono',monospace;opacity:0;transition:opacity 0.3s;z-index:150;pointer-events:none;}
+/* 時間（入れ忘れ防止のため結果の直下） */
+.times{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:10px 0;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);}
+.time{display:grid;gap:3px;min-width:0;}
+.time>label{font-size:11px;color:var(--fg2);}
+.time .row{display:flex;align-items:center;gap:6px;min-width:0;}
+.time input[type=time]{flex:1;min-width:0;background:var(--ink);border:1px solid var(--rule);border-radius:var(--r-ctl);padding:8px;font-size:16px;min-height:40px;}
+.time .empty{color:var(--t1);font-size:13px;flex-shrink:0;}
+.now-btn{background:var(--panel);border:1px solid var(--rule);border-radius:var(--r-ctl);padding:8px 10px;font-size:12px;color:var(--fg);cursor:pointer;flex-shrink:0;min-height:40px;}
+.times .dur{grid-column:1/-1;text-align:right;font-size:12px;color:var(--fg2);}
+.times .dur .num{font-size:18px;color:var(--fg);}
+
+/* この台の癖 */
+.kuse{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;padding:10px;border-radius:var(--r-ctl);background:var(--panel);font-size:12px;color:var(--fg2);}
+.kuse b{font-weight:700;color:var(--fg);}
+
+/* 回転率の行 */
+.rate{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:6px 10px;padding:8px 2px;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);font-size:12px;color:var(--fg2);}
+.rate .big{font-size:26px;color:var(--fg);line-height:1;}
+.rate .d{font-size:16px;}
+
+/* 収支・仕事量・報酬 */
+.figs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));}
+.fig{display:grid;gap:1px;padding:2px 0;min-width:0;}
+.fig+.fig{padding-left:12px;border-left:1px solid var(--rule);}
+.fig .k{font-size:12px;color:var(--fg2);}
+.fig .v{font-size:26px;font-weight:500;line-height:1.1;overflow-wrap:anywhere;}
+.fig .s{font-size:11px;color:var(--fg2);}
+.fig .s .num{color:var(--fg);font-size:13px;}
+.reward{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding:10px;border:1px solid var(--rule);border-radius:var(--r-ctl);font-size:12px;color:var(--fg2);}
+.reward .num{font-size:18px;color:var(--fg);display:block;font-family:var(--font-num);font-variant-numeric:tabular-nums;}
+.reward .full{grid-column:1/-1;font-size:11px;color:var(--fg3);display:flex;flex-wrap:wrap;gap:2px 10px;}
+
+/* 当たり */
+.hero-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;}
+.hero-row>div{display:grid;gap:1px;min-width:0;}
+.hero-row>div+div{padding-left:10px;border-left:1px solid var(--rule);}
+.hero-row .k{font-size:12px;color:var(--fg2);}
+.hero-row .v{font-size:24px;line-height:1.1;overflow-wrap:anywhere;}
+.hero-row .s{font-size:11px;color:var(--fg2);}
+.hits{display:grid;gap:6px;}
+.hit{display:grid;grid-template-columns:auto 1fr auto;gap:2px 10px;align-items:baseline;padding:10px;background:var(--panel);border-radius:var(--r-ctl);}
+.hit .no{font-size:12px;color:var(--fg3);}
+.hit .t{font-size:13px;}
+.hit .b{font-size:18px;text-align:right;overflow-wrap:anywhere;}
+.hit .rs{grid-column:2/3;font-size:11px;color:var(--fg2);}
+.del{background:none;border:1px solid var(--rule);border-radius:var(--r-ctl);color:var(--t0);font-size:12px;padding:8px 10px;min-height:40px;cursor:pointer;}
+.hit .del{grid-column:3;grid-row:2;}
+.add{width:100%;background:none;border:1px dashed var(--rule);border-radius:var(--r-ctl);padding:12px;font-size:13px;color:var(--fg);cursor:pointer;min-height:44px;}
+
+/* 機種 */
+.spec-name{font-size:18px;font-weight:700;color:var(--fg);}
+.spec-maker{font-size:12px;color:var(--fg2);}
+.ratio-slider{-webkit-appearance:none;appearance:none;width:100%;height:28px;background:transparent;outline:none;}
+.ratio-slider::-webkit-slider-runnable-track{height:4px;border-radius:2px;background:var(--rule);}
+.ratio-slider::-webkit-slider-thumb{-webkit-appearance:none;margin-top:-10px;width:24px;height:24px;border-radius:50%;background:var(--fg);cursor:pointer;}
+.ratio-slider::-moz-range-track{height:4px;border-radius:2px;background:var(--rule);}
+.ratio-slider::-moz-range-thumb{width:24px;height:24px;border:0;border-radius:50%;background:var(--fg);cursor:pointer;}
+.ratio-presets{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;}
+.ratio-presets .chip{text-align:center;justify-content:center;padding:9px 0;}
+
+/* 設定 */
+.send{width:100%;background:var(--fg);color:var(--ink);border:0;border-radius:var(--r-panel);padding:16px;font-size:16px;font-weight:700;cursor:pointer;min-height:52px;}
+.danger{width:100%;background:none;border:1px solid var(--rule);border-radius:var(--r-ctl);padding:12px;font-size:13px;color:var(--t0);cursor:pointer;min-height:44px;}
+.toggle{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:13px;padding:4px 0;}
+.th-row{display:grid;grid-template-columns:auto 1fr;gap:8px;align-items:center;}
+.th-row .lamp{width:28px;height:8px;border-radius:2px;}
+
+/* 清算計算機 */
+.seisan-line{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--fg2);}
+.seisan-line .input-field{width:72px;}
+.seisan-table{width:100%;border-collapse:collapse;font-size:12px;}
+.seisan-table th{color:var(--fg2);font-weight:400;padding:4px 2px;text-align:center;}
+.seisan-table td{padding:2px 3px;color:var(--fg2);}
+.seisan-table .input-field{font-size:13px;padding:6px 4px;min-height:38px;}
+.seisan-warning{padding:8px 10px;border:1px solid var(--t1);border-radius:var(--r-ctl);color:var(--t1);font-size:12px;line-height:1.4;}
+.seisan-result{padding:10px;background:var(--ink);border-radius:var(--r-ctl);}
+.direction{padding:8px 10px;border:1px solid var(--rule);border-radius:var(--r-ctl);text-align:center;font-weight:700;font-size:14px;color:var(--fg);margin-top:8px;}
+
+/* 保存の合図 */
+.save-indicator{position:fixed;top:56px;right:16px;background:var(--panel);border:1px solid var(--rule);border-radius:var(--r-ctl);padding:5px 10px;font-size:11px;color:var(--fg2);opacity:0;transition:opacity .3s;z-index:150;pointer-events:none;}
 .save-indicator.show{opacity:1;}
 
-/* スケルトンUI */
-@keyframes skeleton-wave {
-  0%{background-position:200% center}
-  100%{background-position:-200% center}
-}
-.skeleton{
-  background:linear-gradient(90deg,var(--surface2) 25%,var(--surface3) 50%,var(--surface2) 75%);
-  background-size:200% 100%;
-  animation:skeleton-wave 1.5s ease infinite;
-  border-radius:var(--radius-sm);
-}
-.sk-kpi-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;}
-.sk-kpi-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;}
-.sk-label{height:10px;width:60%;margin-bottom:8px;}
-.sk-value{height:22px;width:80%;}
-.sk-value-wide{height:30px;width:90%;}
-.sk-section{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:10px;}
-.sk-section-header{height:10px;width:40%;margin-bottom:14px;}
-.sk-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;}
-.sk-input{height:38px;}
+/* モーダル */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(10,11,12,0.8);z-index:300;align-items:flex-end;justify-content:center;}
+.modal-overlay.show{display:flex;}
+#dialogModal{z-index:400;}
+#tokenModal{z-index:500;}
+.modal{background:var(--panel);border:1px solid var(--rule);border-radius:var(--r-panel) var(--r-panel) 0 0;padding:20px 16px 34px;width:100%;max-width:430px;max-height:88vh;overflow-y:auto;position:relative;display:grid;gap:12px;}
+.modal-title{font-size:15px;font-weight:700;color:var(--fg);}
+.modal-subtitle{font-size:12px;color:var(--fg2);}
+.modal-close{position:absolute;right:12px;top:10px;background:none;border:0;color:var(--fg2);font-size:20px;cursor:pointer;min-height:40px;min-width:40px;}
+.round-input-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.round-input-item{background:var(--ink);border:1px solid var(--rule);border-radius:var(--r-ctl);padding:10px;display:grid;gap:6px;}
+.round-input-name{font-size:12px;color:var(--fg);font-weight:700;}
+.round-input-sub{font-size:11px;color:var(--fg3);}
+.round-counter{display:flex;align-items:center;gap:8px;justify-content:center;}
+.counter-btn{background:var(--panel);border:1px solid var(--rule);color:var(--fg);width:44px;height:44px;border-radius:var(--r-ctl);font-size:20px;cursor:pointer;line-height:1;}
+.counter-val{font-family:var(--font-num);font-size:20px;min-width:30px;text-align:center;}
+.auto-calc-row{background:var(--ink);border:1px solid var(--rule);border-radius:var(--r-ctl);padding:10px;display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:12px;color:var(--fg2);}
+.auto-calc-val{font-family:var(--font-num);font-size:15px;color:var(--fg);}
+.modal-confirm-btn{width:100%;background:var(--fg);color:var(--ink);border:0;border-radius:var(--r-panel);padding:14px;font-size:15px;font-weight:700;cursor:pointer;min-height:48px;}
+.actions{display:flex;gap:8px;}
+.btn{flex:1;padding:13px;border-radius:var(--r-ctl);font-size:14px;cursor:pointer;min-height:46px;}
+.btn.sub{background:none;border:1px solid var(--rule);color:var(--fg2);}
+.btn.primary{background:var(--fg);color:var(--ink);border:0;}
+.btn.danger{background:none;border:1px solid var(--t0);color:var(--t0);}
 
-/* Bottom Nav */
-.bottom-nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;background:rgba(13,17,23,0.97);backdrop-filter:blur(20px);border-top:1px solid var(--border);display:flex;z-index:200;}
-.nav-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:9px 4px 11px;cursor:pointer;position:relative;}
-.nav-item.active::before{content:'';position:absolute;top:0;left:20%;right:20%;height:2px;background:var(--accent);border-radius:0 0 4px 4px;box-shadow:0 0 8px var(--accent);}
-.nav-icon{font-size:19px;margin-bottom:2px;}
-.nav-label{font-size:9px;letter-spacing:1px;color:var(--text3);text-transform:uppercase;font-family:'Rajdhani',sans-serif;font-weight:600;}
-.nav-item.active .nav-label{color:var(--accent);}
+/* 下部ナビ */
+.bottom-nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--rule);background:var(--ink);z-index:200;}
+.nav-item{background:none;border:0;padding:10px 0 12px;display:grid;justify-items:center;gap:3px;font-size:11px;color:var(--fg3);cursor:pointer;min-height:54px;}
+.nav-item.active{color:var(--fg);}
+.nav-item svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.5;}
+
+@media (prefers-reduced-motion:reduce){*{transition:none!important;}}
 </style>
 </head>
 <body>
 <div class="app">
-<div class="save-indicator" id="saveIndicator">SAVED</div>
+<div class="save-indicator" id="saveIndicator" aria-live="polite">保存</div>
 
-<div class="header">
-  <div>
-    <div class="app-title">PACHINKO LOG <span style="font-size:10px;color:var(--text3);letter-spacing:1px;">v7</span></div>
-    <div class="session-info"><span class="status-dot"></span><span id="header-info">— / —</span></div>
-  </div>
-  <button id="refreshBtn" style="background:none;border:1px solid var(--border);border-radius:var(--radius-sm);padding:6px 10px;color:var(--accent);font-size:12px;font-family:'Rajdhani',sans-serif;cursor:pointer;letter-spacing:1px;">🔄 更新</button>
+<div class="session">
+  <div class="sub" id="header-info">店未選択　機種未選択　自分</div>
+  <button class="ghost" type="button" id="refreshBtn">更新</button>
 </div>
 
 <!-- ===== メイン ===== -->
 <div class="tab-content active" id="tab-main">
   <div class="guard" id="guard-main">
-    <div class="guard-icon">⚙️</div>
+    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="4" width="14" height="16" rx="2"/><path d="M9 9h6M9 13h6M9 17h3"/></svg>
     <div class="guard-msg">先に設定タブで<br>店と機種を選択してください</div>
-    <div class="guard-action">設定へ →</div>
+    <div class="guard-action">設定へ</div>
   </div>
   <div id="main-body" style="display:none;">
-    <!-- 収支＋時給 ワイドカード -->
-    <div class="kpi-grid" style="margin-bottom:10px;">
-      <div class="kpi-card" id="card-kosshi" style="grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;">
-        <div style="padding:10px 12px;border-right:1px solid var(--border);">
-          <div class="kpi-label">収支</div>
-          <div class="kpi-value" id="kpi-kosshi">—</div>
-          <div class="kpi-sub" id="kpi-sagitama">差玉 —</div>
-        </div>
-        <div style="padding:10px 12px;">
-          <div class="kpi-label">時給</div>
-          <div class="kpi-value" id="kpi-jikyu">—</div>
-          <div class="kpi-sub" id="kpi-kado">稼働 —</div>
-        </div>
-      </div>
-      <!-- 期待時給 big -->
-      <div class="kpi-card info" style="grid-column:1/-1;padding:12px 14px;">
-        <div class="kpi-label">期待時給</div>
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-top:4px;">
-          <div>
-            <div class="kpi-value info" id="kpi-kitai" style="font-size:26px;">—</div>
-            <div class="kpi-sub" id="kpi-kitai-sub">—</div>
-            <div class="kpi-sub" id="kpi-kitai-now"></div>
-          </div>
-          <!-- 持玉比率（代打ち時のみ表示） -->
-          <div id="kpi-mochi-block" style="display:none;text-align:right;">
-            <div class="kpi-label" style="text-align:right;">持玉比率</div>
-            <div class="kpi-value" id="kpi-mochi-val" style="font-size:22px;margin-top:2px;">—%</div>
-            <div class="kpi-sub" id="kpi-mochi-ruikei" style="text-align:right;">累計: —%</div>
-          </div>
-        </div>
-        <!-- 累計平均期待時給（代打ち時のみ表示） -->
-        <div id="kpi-kitai-avg-block" style="display:none;margin-top:8px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.06);">
-          <span style="font-size:9px;color:var(--text2);font-family:'JetBrains Mono',monospace;letter-spacing:1px;">累計平均期待時給</span>
-          <span id="kpi-kitai-avg-val" style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;margin-left:8px;">—</span>
-          <span id="kpi-kitai-avg-label" style="font-size:11px;margin-left:4px;">—</span>
-        </div>
-      </div>
-      <!-- 仕事量 -->
-      <div class="kpi-card" id="card-shigoto">
-        <div class="kpi-label">仕事量</div>
-        <div class="kpi-value" id="kpi-shigoto">—</div>
-        <div class="kpi-sub" id="kpi-shigoto-sub">時給 —</div>
-      </div>
-      <!-- 運 -->
-      <div class="kpi-card" id="card-un">
-        <div class="kpi-label">運(%)</div>
-        <div class="kpi-value" id="kpi-un">—</div>
-        <div class="kpi-sub">理論比</div>
-      </div>
-      <!-- 累積差玉・報酬（代打ちのみ表示） -->
-      <div class="kpi-card" id="card-ruikei" style="grid-column:1/-1;display:none;">
-        <div style="display:grid;grid-template-columns:1fr 1fr;">
-          <div style="padding:4px 8px 4px 0;border-right:1px solid var(--border);">
-            <div class="kpi-label">累積差玉（本日）</div>
-            <div class="kpi-value" id="kpi-ruikei-sagitama">—</div>
-            <div class="kpi-sub" id="kpi-ruikei-sub">前台引継: 0玉</div>
-          </div>
-          <div style="padding:4px 0 4px 8px;">
-            <div class="kpi-label">報酬（自動計算）</div>
-            <div class="kpi-value pos" id="kpi-hoshu">¥0</div>
-            <div class="kpi-sub" id="kpi-hoshu-sub">期待時給で開始ライン判定 + 持玉控除</div>
-          </div>
-        </div>
-      </div>
-    </div>
 
-    <div class="section" id="section-rotation">
-      <div class="section-header"><div class="section-label">回転数</div><div class="section-line"></div></div>
-      <div class="chip-select" id="rot-mode-chips" style="margin-bottom:10px;">
+    <!-- 1. 期待時給メーター（数字＝実力、点線の針＝実力、実線の針＝今） -->
+    <section class="meter" id="kitai-meter" aria-label="期待時給">
+      <div class="meter-head"><span>期待時給（実力・持ち玉100%）</span><span class="tier" id="kpi-kitai-sub">—</span></div>
+      <div class="kitai num"><span id="kpi-kitai">—</span><small>円/時</small></div>
+      <div class="gauge" aria-hidden="true">
+        <div class="bands" id="kitai-bands"></div>
+        <div class="needle full" id="kitai-needle-full"></div>
+        <div class="needle now" id="kitai-needle-now" hidden></div>
+      </div>
+      <div class="scale num" id="kitai-scale" aria-hidden="true"></div>
+      <div class="now-line" id="kitai-now-line" hidden>
+        <span>今の持ち玉比率 <span class="num" id="kitai-now-ratio">—%</span> での期待時給</span>
+        <span class="num" id="kpi-kitai-now">—</span>
+      </div>
+      <div class="legend"><span><i class="a"></i>今</span><span><i class="b"></i>実力</span></div>
+    </section>
+
+    <!-- 2. 時間（終了が空なら「未入力」） -->
+    <section class="times" aria-label="時間">
+      <div class="time" id="time-start-group">
+        <label for="in-time-start">開始</label>
+        <div class="row">
+          <input type="time" id="in-time-start" oninput="onTimeInput(this)" onchange="onTimeInput(this)">
+          <button class="now-btn" type="button" id="time-start-now">今</button>
+        </div>
+      </div>
+      <div class="time" id="time-end-group">
+        <label for="in-time-end">終了</label>
+        <div class="row">
+          <input type="time" id="in-time-end" oninput="onTimeInput(this)" onchange="onTimeInput(this)">
+          <span class="empty" id="time-end-empty" hidden>未入力</span>
+          <button class="now-btn" type="button" id="time-end-now">今</button>
+        </div>
+      </div>
+      <div class="dur">稼働 <span class="num" id="kpi-kado">—</span> 時間</div>
+    </section>
+
+    <!-- 3. この台の癖（中身は別の担当が作る） -->
+    <section class="kuse" id="kuse-line" aria-label="この台の癖" hidden></section>
+
+    <!-- 4. 回転率 -->
+    <section class="rate" aria-label="回転率">
+      <span>回転率 <span class="num big" id="disp-rot-rate">—</span> 回/千円</span>
+      <span>ボーダー <span class="num" id="main-border">—</span>　<span class="num d" id="main-border-diff">—</span></span>
+    </section>
+
+    <!-- 5. 収支（下に時給・差玉）と仕事量（下に時給・運） -->
+    <section class="figs" aria-label="収支と仕事量">
+      <div class="fig" id="card-kosshi">
+        <span class="k">収支</span>
+        <span class="v num" id="kpi-kosshi">—</span>
+        <span class="s">時給 <span class="num" id="kpi-jikyu">—</span>　差玉 <span class="num" id="kpi-sagitama">—</span></span>
+      </div>
+      <div class="fig" id="card-shigoto">
+        <span class="k">仕事量</span>
+        <span class="v num" id="kpi-shigoto">—</span>
+        <span class="s" id="card-un">時給 <span class="num" id="kpi-shigoto-sub">—</span>　運 <span class="num" id="kpi-un">—</span></span>
+      </div>
+    </section>
+
+    <!-- 6. 代打ちのときの報酬欄 -->
+    <section class="reward" id="card-ruikei" style="display:none;" aria-label="代打ちの報酬">
+      <div>累積差玉（本日）<span class="num" id="kpi-ruikei-sagitama">—</span><span class="note" id="kpi-ruikei-sub"></span></div>
+      <div>報酬<span class="num" id="kpi-hoshu">¥0</span></div>
+      <div class="full">
+        <span id="kpi-hoshu-sub"></span>
+        <span id="kpi-kitai-avg-block">累計平均期待時給 <span class="num" id="kpi-kitai-avg-val">—</span> <span id="kpi-kitai-avg-label">—</span></span>
+        <span id="kpi-mochi-block">持ち玉比率 <span class="num" id="kpi-mochi-val">—%</span> <span id="kpi-mochi-ruikei"></span></span>
+      </div>
+    </section>
+
+    <!-- 7. 回転数の入力（シンプル／区間入力） -->
+    <section class="group" id="section-rotation">
+      <h2>回転数<span class="chips" id="rot-mode-chips">
         <button type="button" class="chip selected" data-mode="simple" aria-pressed="true">シンプル</button>
         <button type="button" class="chip" data-mode="segments" aria-pressed="false">区間入力</button>
-      </div>
-      <div class="rotation-display">
-        <div><div class="rot-val" id="disp-total-rot">—</div><div class="rot-label">総回転 <span class="badge-auto">AUTO</span></div></div>
-        <div><div class="rot-val" id="disp-normal-rot">—</div><div class="rot-label">通常回転 <span class="badge-auto">AUTO</span></div></div>
-        <div><div class="rot-val" id="disp-rot-rate">—</div><div class="rot-label">回転率 <span class="badge-auto">AUTO</span></div></div>
-      </div>
-      <div class="input-grid" id="simple-rot-inputs">
-        <div class="input-group">
-          <div class="input-label">開始回転 <span class="badge-manual">入力</span></div>
-          <input class="input-field is-manual" type="number" inputmode="numeric" placeholder="0" id="in-rot-start" oninput="recalc();save()">
-        </div>
-        <div class="input-group">
-          <div class="input-label">終了回転 <span class="badge-manual">入力</span></div>
-          <input class="input-field is-manual" type="number" inputmode="numeric" placeholder="0" id="in-rot-end" oninput="recalc();save()">
-        </div>
+      </span></h2>
+      <div class="inputs" id="simple-rot-inputs">
+        <div class="field"><label for="in-rot-start">開始回転</label><input class="n" type="number" inputmode="numeric" placeholder="0" id="in-rot-start" oninput="recalc();save()"></div>
+        <div class="field"><label for="in-rot-end">終了回転</label><input class="n" type="number" inputmode="numeric" placeholder="0" id="in-rot-end" oninput="recalc();save()"></div>
       </div>
       <div id="segment-rot-panel" style="display:none;">
-        <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) 52px;gap:8px;font-size:11px;color:var(--text2);margin-bottom:6px;">
-          <span>開始・時短抜け</span><span>終了・当たり</span><span></span>
-        </div>
+        <div class="note" style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) 52px;gap:8px;margin-bottom:6px;"><span>開始・時短抜け</span><span>終了・当たり</span><span></span></div>
         <div id="rot-segment-list"></div>
-        <button type="button" class="add-hit-btn" id="add-rot-segment-btn" style="margin-top:8px;">＋ 区間追加</button>
-        <div style="margin-top:8px;font-size:11px;color:var(--text2);">総回転: <span id="disp-segment-sum">—</span></div>
+        <button type="button" class="add" id="add-rot-segment-btn" style="margin-top:8px;">＋ 区間追加</button>
+        <div class="note" style="margin-top:8px;">区間の合計 <span class="num" id="disp-segment-sum">—</span></div>
       </div>
-    </div>
+      <div class="note">総回転 <span class="num" id="disp-total-rot">—</span>　通常回転 <span class="num" id="disp-normal-rot">—</span></div>
+    </section>
 
-    <div class="section">
-      <div class="section-header"><div class="section-label">収支入力</div><div class="section-line"></div></div>
-      <div class="input-grid">
-        <div class="input-group" id="time-start-group">
-          <div class="input-label">開始時間 <span class="badge-manual">入力</span></div>
-          <input class="input-field is-manual" type="time" id="in-time-start" oninput="onTimeInput(this)" onchange="onTimeInput(this)">
-        </div>
-        <div class="input-group" id="time-end-group">
-          <div class="input-label">終了時間 <span class="badge-manual">入力</span></div>
-          <input class="input-field is-manual" type="time" id="in-time-end" oninput="onTimeInput(this)" onchange="onTimeInput(this)">
-        </div>
-        <div class="input-group">
-          <div class="input-label">投資金額 <span class="badge-manual">入力</span></div>
-          <div class="cur-wrap"><span class="cur">¥</span>
-          <input class="input-field is-manual" type="number" inputmode="numeric" placeholder="0" id="in-invest" oninput="recalc();save()"></div>
-        </div>
-        <div class="input-group">
-          <div class="input-label">投資玉数 <span id="invest-ball-badge" class="badge-manual">入力</span></div>
-          <input class="input-field is-manual" type="number" inputmode="numeric" placeholder="0" id="in-invest-ball" oninput="onInvestBallInput()">
-        </div>
-        <div class="input-group">
-          <div class="input-label">開始時貯玉 <span class="badge-manual">入力</span></div>
-          <input class="input-field is-manual" type="number" inputmode="numeric" placeholder="0" id="in-stock-start" oninput="onStockInput(true)">
-        </div>
-        <div class="input-group">
-          <div class="input-label">貯玉カード <span class="badge-manual">選択・新規入力</span></div>
-          <input class="input-field is-manual" type="text" id="in-stock-card" list="stock-card-options" maxlength="80" oninput="onStockCardInput()" placeholder="打ち手のカード">
-          <datalist id="stock-card-options"></datalist>
-          <div class="stock-balance-note" id="stock-balance-note"></div>
-        </div>
-        <div class="input-group">
-          <div class="input-label">投資終了時貯玉 <span class="badge-manual">入力</span></div>
-          <input class="input-field is-manual" type="number" inputmode="numeric" placeholder="0" id="in-stock-end" oninput="onStockInput(false)">
-          <div class="stock-clamp-note" id="stock-clamp-note">投資終了時貯玉が開始時貯玉より多いため0にしました</div>
-        </div>
-        <div class="input-group">
-          <div class="input-label">回収玉数 <span class="badge-manual">入力</span></div>
-          <input class="input-field is-manual" type="number" inputmode="numeric" placeholder="0" id="in-recover" oninput="recalc();save()">
-        </div>
-        <div class="input-group">
-          <div class="input-label">渡した玉 <span class="badge-manual">入力</span></div>
-          <input class="input-field is-manual" type="number" inputmode="numeric" placeholder="0" id="in-watashita" oninput="recalc();save()">
-        </div>
-        <div class="input-group">
-          <div class="input-label">もらった玉 <span class="badge-manual">入力</span></div>
-          <input class="input-field is-manual" type="number" inputmode="numeric" placeholder="0" id="in-moratta" oninput="recalc();save()">
-        </div>
+    <!-- 8. 収支入力（時間は上へ移したのでここには無い） -->
+    <section class="group" aria-label="収支の入力">
+      <h2>収支入力</h2>
+      <div class="inputs">
+        <div class="field"><label for="in-invest">投資金額</label><div class="yen"><input class="n" type="number" inputmode="numeric" placeholder="0" id="in-invest" oninput="recalc();save()"></div></div>
+        <div class="field"><label for="in-invest-ball">投資玉数 <span id="invest-ball-badge" class="badge-manual">入力</span></label><input class="n" type="number" inputmode="numeric" placeholder="0" id="in-invest-ball" oninput="onInvestBallInput()"></div>
+        <div class="field"><label for="in-recover">回収玉数</label><input class="n" type="number" inputmode="numeric" placeholder="0" id="in-recover" oninput="recalc();save()"></div>
+        <div class="field"><label for="in-stock-card">貯玉カード</label><input type="text" id="in-stock-card" list="stock-card-options" maxlength="80" placeholder="打ち手のカード" oninput="onStockCardInput()"><datalist id="stock-card-options"></datalist><div class="stock-balance-note" id="stock-balance-note"></div></div>
+        <div class="field"><label for="in-stock-start">開始時貯玉</label><input class="n" type="number" inputmode="numeric" placeholder="0" id="in-stock-start" oninput="onStockInput(true)"></div>
+        <div class="field"><label for="in-stock-end">投資終了時貯玉</label><input class="n" type="number" inputmode="numeric" placeholder="0" id="in-stock-end" oninput="onStockInput(false)"><div id="stock-clamp-note" style="display:none;font-size:11px;color:var(--t1);line-height:1.4;">投資終了時貯玉が開始時貯玉より多いため0にしました</div></div>
+        <div class="field"><label for="in-watashita">渡した玉</label><input class="n" type="number" inputmode="numeric" placeholder="0" id="in-watashita" oninput="recalc();save()"></div>
+        <div class="field"><label for="in-moratta">もらった玉</label><input class="n" type="number" inputmode="numeric" placeholder="0" id="in-moratta" oninput="recalc();save()"></div>
       </div>
-    </div>
-    <!-- ===== 清算計算機（ノリうちモード時のみ表示） ===== -->
-    <div class="section" id="section-seisan" style="display:none;">
-      <div class="section-header"><div class="section-label">清算計算機</div><div class="section-line"></div></div>
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-        <span style="color:var(--text2);font-size:13px;">換金率</span>
-        <input class="input-field" type="number" inputmode="numeric" id="seisan-kokan" value="28" style="width:72px;padding:6px 8px;" oninput="calcSeisan()">
-        <span style="color:var(--text2);font-size:13px;">玉交換</span>
-      </div>
-      <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:10px;">
-        <thead>
-          <tr style="color:var(--text2);">
-            <th style="padding:4px 6px;text-align:left;width:48px;"></th>
-            <th style="padding:4px 2px;text-align:center;font-weight:500;">現金投資(円)</th>
-            <th style="padding:4px 2px;text-align:center;font-weight:500;">貯玉投資(玉)</th>
-            <th style="padding:4px 2px;text-align:center;font-weight:500;">回収玉</th>
-            <th style="padding:4px 2px;text-align:center;font-weight:500;">回収(現金円)</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td style="padding:4px 6px;color:var(--text2);">自分</td>
-            <td style="padding:2px 3px;"><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-jibun-genkin"  oninput="calcSeisan()" style="font-size:13px;padding:6px 4px;"></td>
-            <td style="padding:2px 3px;"><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-jibun-tama"    oninput="calcSeisan()" style="font-size:13px;padding:6px 4px;"></td>
-            <td style="padding:2px 3px;"><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-jibun-recover" oninput="calcSeisan()" style="font-size:13px;padding:6px 4px;"></td>
-            <td style="padding:2px 3px;"><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-jibun-recover-cash" oninput="calcSeisan()" style="font-size:13px;padding:6px 4px;"></td>
-          </tr>
-          <tr>
-            <td style="padding:4px 6px;color:var(--text2);">相手</td>
-            <td style="padding:2px 3px;"><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-aite-genkin"  oninput="calcSeisan()" style="font-size:13px;padding:6px 4px;"></td>
-            <td style="padding:2px 3px;"><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-aite-tama"    oninput="calcSeisan()" style="font-size:13px;padding:6px 4px;"></td>
-            <td style="padding:2px 3px;"><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-aite-recover" oninput="calcSeisan()" style="font-size:13px;padding:6px 4px;"></td>
-            <td style="padding:2px 3px;"><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-aite-recover-cash" oninput="calcSeisan()" style="font-size:13px;padding:6px 4px;"></td>
-          </tr>
-        </tbody>
-      </table>
-      <!-- ===== スロット（メダル）清算 ===== -->
-      <div style="font-size:12px;font-weight:600;color:var(--text2);margin:12px 0 6px;">スロット（メダル）</div>
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
-        <span style="color:var(--text2);font-size:13px;">交換率</span>
-        <input class="input-field" type="number" inputmode="decimal" id="seisan-slot-rate" placeholder="5.6" style="width:72px;padding:6px 8px;" oninput="calcSeisan()">
-        <span style="color:var(--text2);font-size:13px;">100円あたり枚数</span>
-      </div>
-      <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:10px;">
-        <thead>
-          <tr style="color:var(--text2);">
-            <th style="padding:4px 6px;text-align:left;width:48px;"></th>
-            <th style="padding:4px 2px;text-align:center;font-weight:500;">現金投資(円)</th>
-            <th style="padding:4px 2px;text-align:center;font-weight:500;">貯メダル投資(枚)</th>
-            <th style="padding:4px 2px;text-align:center;font-weight:500;">回収(枚)</th>
-            <th style="padding:4px 2px;text-align:center;font-weight:500;">回収(現金円)</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td style="padding:4px 6px;color:var(--text2);">自分</td>
-            <td style="padding:2px 3px;"><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-slot-jibun-genkin"  oninput="calcSeisan()" style="font-size:13px;padding:6px 4px;"></td>
-            <td style="padding:2px 3px;"><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-slot-jibun-medal"    oninput="calcSeisan()" style="font-size:13px;padding:6px 4px;"></td>
-            <td style="padding:2px 3px;"><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-slot-jibun-recover" oninput="calcSeisan()" style="font-size:13px;padding:6px 4px;"></td>
-            <td style="padding:2px 3px;"><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-slot-jibun-recover-cash" oninput="calcSeisan()" style="font-size:13px;padding:6px 4px;"></td>
-          </tr>
-          <tr>
-            <td style="padding:4px 6px;color:var(--text2);">相手</td>
-            <td style="padding:2px 3px;"><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-slot-aite-genkin"  oninput="calcSeisan()" style="font-size:13px;padding:6px 4px;"></td>
-            <td style="padding:2px 3px;"><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-slot-aite-medal"    oninput="calcSeisan()" style="font-size:13px;padding:6px 4px;"></td>
-            <td style="padding:2px 3px;"><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-slot-aite-recover" oninput="calcSeisan()" style="font-size:13px;padding:6px 4px;"></td>
-            <td style="padding:2px 3px;"><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-slot-aite-recover-cash" oninput="calcSeisan()" style="font-size:13px;padding:6px 4px;"></td>
-          </tr>
-        </tbody>
-      </table>
-      <div id="seisan-warning" style="display:none;margin-bottom:10px;padding:8px 12px;background:rgba(255,204,0,0.08);border:1px solid rgba(255,204,0,0.35);border-radius:6px;color:var(--warn);font-size:12px;line-height:1.4;"></div>
-      <div id="seisan-result" style="padding:10px;background:rgba(255,255,255,0.04);border-radius:8px;font-size:13px;display:none;">
-        <div style="display:grid;grid-template-columns:1fr auto;gap:4px 12px;align-items:baseline;">
-          <span style="color:var(--text2);">合算収支</span>       <span id="seisan-gassan"      style="font-family:'JetBrains Mono',monospace;font-weight:700;text-align:right;">—</span>
-          <span style="color:var(--text2);">一人当たり</span>     <span id="seisan-hitori"       style="font-family:'JetBrains Mono',monospace;text-align:right;">—</span>
-          <span style="color:var(--text2);">自分の実収支</span>   <span id="seisan-jibun-kosshi" style="font-family:'JetBrains Mono',monospace;text-align:right;">—</span>
-          <span style="color:var(--text2);">相手の実収支</span>   <span id="seisan-aite-kosshi"  style="font-family:'JetBrains Mono',monospace;text-align:right;">—</span>
+    </section>
+
+    <!-- 9. 清算計算機（ノリうちのときだけ表示・中身は折りたたみ） -->
+    <section id="section-seisan" style="display:none;">
+      <details class="fold">
+        <summary>清算計算機<span>パチンコ・スロット・合算</span></summary>
+        <div class="inner">
+          <div class="seisan-line">
+            <span>換金率</span>
+            <input class="input-field" type="number" inputmode="numeric" id="seisan-kokan" value="28" oninput="calcSeisan()">
+            <span>玉交換</span>
+          </div>
+          <table class="seisan-table">
+            <thead>
+              <tr>
+                <th style="text-align:left;width:48px;"></th>
+                <th>現金投資(円)</th>
+                <th>貯玉投資(玉)</th>
+                <th>回収玉</th>
+                <th>回収(現金円)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>自分</td>
+                <td><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-jibun-genkin" oninput="calcSeisan()"></td>
+                <td><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-jibun-tama" oninput="calcSeisan()"></td>
+                <td><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-jibun-recover" oninput="calcSeisan()"></td>
+                <td><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-jibun-recover-cash" oninput="calcSeisan()"></td>
+              </tr>
+              <tr>
+                <td>相手</td>
+                <td><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-aite-genkin" oninput="calcSeisan()"></td>
+                <td><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-aite-tama" oninput="calcSeisan()"></td>
+                <td><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-aite-recover" oninput="calcSeisan()"></td>
+                <td><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-aite-recover-cash" oninput="calcSeisan()"></td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="note">スロット（メダル）</div>
+          <div class="seisan-line">
+            <span>交換率</span>
+            <input class="input-field" type="number" inputmode="decimal" id="seisan-slot-rate" placeholder="5.6" oninput="calcSeisan()">
+            <span>100円あたり枚数</span>
+          </div>
+          <table class="seisan-table">
+            <thead>
+              <tr>
+                <th style="text-align:left;width:48px;"></th>
+                <th>現金投資(円)</th>
+                <th>貯メダル投資(枚)</th>
+                <th>回収(枚)</th>
+                <th>回収(現金円)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>自分</td>
+                <td><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-slot-jibun-genkin" oninput="calcSeisan()"></td>
+                <td><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-slot-jibun-medal" oninput="calcSeisan()"></td>
+                <td><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-slot-jibun-recover" oninput="calcSeisan()"></td>
+                <td><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-slot-jibun-recover-cash" oninput="calcSeisan()"></td>
+              </tr>
+              <tr>
+                <td>相手</td>
+                <td><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-slot-aite-genkin" oninput="calcSeisan()"></td>
+                <td><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-slot-aite-medal" oninput="calcSeisan()"></td>
+                <td><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-slot-aite-recover" oninput="calcSeisan()"></td>
+                <td><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-slot-aite-recover-cash" oninput="calcSeisan()"></td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="seisan-warning" id="seisan-warning" style="display:none;"></div>
+          <div class="seisan-result" id="seisan-result" style="display:none;">
+            <dl class="kv">
+              <dt>合算収支</dt><dd class="num" id="seisan-gassan">—</dd>
+              <dt>一人当たり</dt><dd class="num" id="seisan-hitori">—</dd>
+              <dt>自分の実収支</dt><dd class="num" id="seisan-jibun-kosshi">—</dd>
+              <dt>相手の実収支</dt><dd class="num" id="seisan-aite-kosshi">—</dd>
+            </dl>
+            <div class="direction" id="seisan-direction">—</div>
+          </div>
         </div>
-        <div id="seisan-direction" style="margin-top:10px;padding:8px 12px;background:rgba(0,212,255,0.08);border:1px solid rgba(0,212,255,0.2);border-radius:6px;text-align:center;font-weight:700;color:var(--accent);font-size:14px;">—</div>
-      </div>
-    </div>
-    <div class="section">
-      <div class="section-header"><div class="section-label">メモ</div><div class="section-line"></div></div>
-      <div class="input-group">
-        <div class="input-label">メモ <span class="badge-manual">入力</span></div>
-        <textarea class="input-field textarea is-manual" id="in-memo" placeholder="自由メモ" oninput="save()"></textarea>
-      </div>
-    </div>
+      </details>
+    </section>
+
+    <!-- 10. メモ（入力に合わせて高さが伸びる） -->
+    <section class="group" aria-label="メモ">
+      <div class="field"><label for="in-memo">メモ</label><textarea id="in-memo" rows="2" placeholder="気づいたことを書く" oninput="save(); autoGrowMemo()"></textarea></div>
+    </section>
+
   </div>
 </div>
 
 <!-- ===== 当たり ===== -->
 <div class="tab-content" id="tab-hit">
   <div class="guard" id="guard-hit">
-    <div class="guard-icon">⚙️</div>
+    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2.5"/></svg>
     <div class="guard-msg">先に設定タブで<br>店と機種を選択してください</div>
-    <div class="guard-action">設定へ →</div>
+    <div class="guard-action">設定へ</div>
   </div>
   <div id="hit-body" style="display:none;">
-    <div class="section">
-      <div class="section-header"><div class="section-label">当たりサマリー</div><div class="section-line"></div></div>
-      <div class="input-grid" style="margin-bottom:12px;">
-        <div class="input-group">
-          <div class="input-label">開始当たり数 <span class="badge-manual">入力</span></div>
-          <input class="input-field is-manual" type="number" inputmode="numeric" placeholder="0" id="in-hit-start" value="0" oninput="recalc();save()">
+
+    <!-- 初当たりの要約 -->
+    <section class="hero-row" aria-label="初当たりの要約">
+      <div><span class="k">初当たり</span><span class="v num" id="hit-count">0回</span><span class="s">記録の件数</span></div>
+      <div><span class="k">初当たり確率</span><span class="v num" id="hit-jitsu-rate">—</span><span class="s" id="hit-hatsua-spec">スペック 1/—</span></div>
+      <div><span class="k">平均出玉</span><span class="v num" id="hit-avg-balls">—</span><span class="s">初当たり1回あたり</span></div>
+    </section>
+    <p class="note" id="hit-round11-note" hidden>この機種は11R以上の振り分けがあるため、データランプの当たり回数とずれることがあります</p>
+
+    <dl class="kv" style="padding:8px 0;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);">
+      <dt>出玉の合計</dt><dd class="num" id="sum-hit-balls">0玉</dd>
+      <dt>今回当たり（出玉あり）</dt><dd class="num" id="sum-hit-today">0回</dd>
+      <dt>当たり1回増減</dt><dd><span class="badge neu" id="sum-hit-delta">—</span></dd>
+      <dt>総増減（実測 − 理論）</dt><dd><span class="badge neu" id="sum-total-delta">—</span></dd>
+    </dl>
+
+    <!-- 当たりの記録 -->
+    <section class="group" aria-label="当たりの記録">
+      <h2>当たりの記録</h2>
+      <div class="hits" id="hit-list"></div>
+      <button class="add" id="add-hit-btn" type="button">＋ 当たりを追加</button>
+    </section>
+
+    <!-- データランプと合わせる -->
+    <details class="fold">
+      <summary>データランプと合わせる<span>開始当たり・出玉なし</span></summary>
+      <div class="inner">
+        <div class="inputs">
+          <div class="field"><label for="in-hit-start">開始時の当たり数</label><input class="n" type="number" inputmode="numeric" placeholder="0" id="in-hit-start" value="0" oninput="recalc();save()"></div>
+          <div class="field"><label for="in-hit-nodama">出玉なし当たり</label><input class="n" type="number" inputmode="numeric" placeholder="0" id="in-hit-nodama" value="0" oninput="recalc();save()"></div>
         </div>
-        <div class="input-group">
-          <div class="input-label">出玉なし当たり <span class="badge-manual">入力</span></div>
-          <input class="input-field is-manual" type="number" inputmode="numeric" placeholder="0" id="in-hit-nodama" value="0" oninput="recalc();save()">
-        </div>
+        <div class="note">データランプの表示：合計 <span class="num" id="sum-hit-total">0回</span></div>
       </div>
-      <div class="summary-row">
-        <span class="lbl">今回当たり（出玉あり）</span>
-        <span class="val" style="color:var(--accent)" id="sum-hit-today">0回</span>
-      </div>
-      <div class="summary-row">
-        <span class="lbl">合計当たり数（データ表示）</span>
-        <span class="val"><span class="badge info" id="sum-hit-total">0回</span></span>
-      </div>
-      <div class="summary-row">
-        <span class="lbl">合計当たり出玉</span>
-        <span class="val" style="color:var(--green)" id="sum-hit-balls">0玉</span>
-      </div>
-      <div class="summary-row">
-        <span class="lbl">総増減（実測 − 理論）</span>
-        <span class="val"><span class="badge neu" id="sum-total-delta">—</span></span>
-      </div>
-      <div class="summary-row">
-        <span class="lbl">当たり1回増減</span>
-        <span class="val"><span class="badge neu" id="sum-hit-delta">—</span></span>
-      </div>
-    </div>
-    <div class="section">
-      <div class="section-header"><div class="section-label">当たり記録</div><div class="section-line"></div></div>
-      <div class="hit-list" id="hit-list"></div>
-      <button class="add-hit-btn" id="add-hit-btn">＋ 当たり追加</button>
-    </div>
+    </details>
+
   </div>
 </div>
 
-<!-- ===== ボーダー ===== -->
+<!-- ===== 機種（旧ボーダー） ===== -->
 <div class="tab-content" id="tab-border">
-  <div class="section">
-    <div class="section-header"><div class="section-label">持玉比率</div><div class="section-line"></div></div>
-    <div class="ratio-label-row">
-      <div class="ratio-title">BALL RATIO</div>
-      <div class="ratio-val-display" id="ratio-display">100%</div>
-    </div>
+  <div><div class="spec-name" id="disp-spec-name">—</div><div class="spec-maker" id="disp-spec-maker">—</div></div>
+
+  <dl class="kv">
+    <dt>初当たり確率</dt><dd class="num" id="disp-hatsua">—</dd>
+    <dt>トータル確率</dt><dd class="num" id="disp-spec-total">—</dd>
+    <dt>平均出玉（1回の初当たり）</dt><dd class="num" id="disp-spec-heikin">—</dd>
+    <dt>平均連チャン</dt><dd class="num" id="disp-spec-heiren">—</dd>
+    <dt>1R確率</dt><dd class="num" id="disp-spec-total1r">—</dd>
+    <dt>時速</dt><dd class="num" id="disp-spec-jikan">—</dd>
+  </dl>
+
+  <section class="group" aria-label="ボーダー">
+    <h2>ボーダー<span id="disp-spec-kankin">換金率 —</span></h2>
+    <dl class="kv">
+      <dt>ボーダー</dt><dd class="num" id="disp-border">—</dd>
+      <dt>今の回転率</dt><dd class="num" id="disp-border-rot">—</dd>
+      <dt>差</dt><dd><span class="badge neu" id="disp-border-diff">—</span></dd>
+    </dl>
+  </section>
+
+  <section class="group" aria-label="持ち玉比率の試算">
+    <h2>もし持ち玉比率が○%なら<span>試算だけ・送信には使わない</span></h2>
     <input type="range" class="ratio-slider" min="0" max="100" value="100" id="ratio-slider" oninput="setRatioVal(this.value)" onchange="setRatioVal(this.value)">
     <div class="ratio-presets">
-      <div class="ratio-preset active" id="rp-100">100%</div>
-      <div class="ratio-preset" id="rp-75">75%</div>
-      <div class="ratio-preset" id="rp-50">50%</div>
-      <div class="ratio-preset" id="rp-25">25%</div>
-      <div class="ratio-preset" id="rp-0">0%</div>
+      <button type="button" class="chip selected" id="rp-100" aria-pressed="true">100%</button>
+      <button type="button" class="chip" id="rp-75" aria-pressed="false">75%</button>
+      <button type="button" class="chip" id="rp-50" aria-pressed="false">50%</button>
+      <button type="button" class="chip" id="rp-25" aria-pressed="false">25%</button>
+      <button type="button" class="chip" id="rp-0" aria-pressed="false">0%</button>
     </div>
-  </div>
+    <dl class="kv">
+      <dt>期待時給（<span id="ratio-display">100%</span>）</dt><dd class="num" id="border-kitai-val">—</dd>
+    </dl>
+    <div class="note" id="border-kitai-sub">持玉比率 100% 時</div>
+  </section>
 
-  <div class="kitai-card">
-    <div>
-      <div style="font-size:11px;color:var(--text2);">期待時給（持玉比率反映）</div>
-      <div style="font-size:9px;color:var(--text3);margin-top:2px;" id="border-kitai-sub">持玉比率 100% 時</div>
-    </div>
-    <div style="text-align:right;">
-      <div class="kitai-val" id="border-kitai-val">—</div>
-      <div style="font-size:11px;color:var(--text2);">円/時</div>
-    </div>
-  </div>
+  <section class="group" aria-label="ラウンドの内訳">
+    <h2>ラウンドの内訳</h2>
+    <dl class="kv" id="spec-rounds"></dl>
+  </section>
 
-  <div class="section">
-    <div class="section-header"><div class="section-label">ボーダー比較</div><div class="section-line"></div></div>
-    <div class="summary-row">
-      <span class="lbl">ボーダー</span>
-      <span class="val" id="disp-border">—</span>
-    </div>
-    <div class="summary-row">
-      <span class="lbl">実回転率</span>
-      <span class="val" id="disp-border-rot">—</span>
-    </div>
-    <div class="summary-row">
-      <span class="lbl">差</span>
-      <span class="val"><span class="badge neu" id="disp-border-diff">—</span></span>
-    </div>
-  </div>
-
-  <div class="section">
-    <div class="section-header"><div class="section-label">機種スペック</div><div class="section-line"></div></div>
-    <div class="summary-row">
-      <span class="lbl">メーカー</span>
-      <span class="val" id="disp-spec-maker">—</span>
-    </div>
-    <div class="summary-row">
-      <span class="lbl">平均出玉</span>
-      <span class="val" id="disp-spec-heikin">—</span>
-    </div>
-    <div class="summary-row">
-      <span class="lbl">平均連</span>
-      <span class="val" id="disp-spec-heiren">—</span>
-    </div>
-    <div class="summary-row">
-      <span class="lbl">初当たり確率</span>
-      <span class="val" id="disp-hatsua">—</span>
-    </div>
-  </div>
+  <!-- 実測時速（中身は別の担当が作る） -->
+  <section class="kuse" id="jisoku-line" aria-label="実測時速" hidden></section>
 </div>
 
 <!-- ===== 設定 ===== -->
 <div class="tab-content" id="tab-setting">
-  <div class="section">
-    <div class="section-header"><div class="section-label">セッション設定</div><div class="section-line"></div></div>
-    <div class="setting-row">
-      <div class="input-label" style="display:block;margin-bottom:6px;">日付</div>
-      <input class="input-field" type="date" id="in-date" onfocus="fillDateIfEmpty(); recalc();" oninput="save(); recalc(); triggerRuikeiSync();">
+  <section class="group" aria-label="今日の台">
+    <h2>今日の台</h2>
+    <div class="inputs">
+      <div class="field"><label for="in-date">日付</label><input type="date" id="in-date" onfocus="fillDateIfEmpty(); recalc();" oninput="save(); recalc(); triggerRuikeiSync();"></div>
+      <div class="field"><label for="in-daiban">台番号</label><input class="n" type="number" inputmode="numeric" placeholder="例：123" id="in-daiban" oninput="save()"></div>
+      <div class="field wide"><label for="in-shop">店</label><select id="in-shop" onchange="onShopChange()"><option value="">選択してください</option></select></div>
+      <div class="field wide"><label for="in-maker-filter">メーカー絞り込み</label><select id="in-maker-filter" onchange="onMakerFilterChange()"><option value="">全メーカー</option></select></div>
+      <div class="field wide"><label for="in-kishu">機種</label><select id="in-kishu" onchange="onKishuChange()"><option value="">選択してください</option></select></div>
+      <div class="field wide"><label>換金率</label><div class="auto" id="disp-kankin">—</div></div>
+      <div class="field wide"><label for="in-event">イベント</label><input type="text" id="in-event" placeholder="例：じゃんじゃん来店" oninput="save()"></div>
     </div>
-    <div class="setting-row">
-      <div class="input-label" style="display:block;margin-bottom:6px;">店</div>
-      <select class="input-field" id="in-shop" onchange="onShopChange()">
-        <option value="">選択してください</option>
-      </select>
-    </div>
-    <div class="setting-row">
-      <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
-        <div class="input-label" style="margin-bottom:0;">機種</div>
-        <select class="input-field" id="in-maker-filter" onchange="onMakerFilterChange()"
-          style="flex:1;font-size:10px;padding-top:5px;padding-bottom:5px;">
-          <option value="">全メーカー</option>
-        </select>
-      </div>
-      <select class="input-field" id="in-kishu" onchange="onKishuChange()">
-        <option value="">選択してください</option>
-      </select>
-    </div>
-    <div class="setting-row">
-      <div class="input-label" style="display:block;margin-bottom:6px;">換金率<span class="auto-badge">✦ 店マスタより自動取得</span></div>
-      <div class="input-field" style="background:rgba(57,255,110,0.05);border-color:rgba(57,255,110,0.2);color:var(--green);cursor:default;" id="disp-kankin">—</div>
-    </div>
-    <div class="setting-row">
-      <div class="input-label" style="display:block;margin-bottom:6px;">台番号</div>
-      <input class="input-field" type="number" inputmode="numeric" placeholder="例：123" id="in-daiban" oninput="save()">
-    </div>
-    <div class="setting-row">
-      <div class="input-label" style="display:block;margin-bottom:6px;">打ち手</div>
-      <div class="chip-select" id="uchi-chips"></div>
-    </div>
-    <div class="setting-row">
-      <div class="input-label" style="display:block;margin-bottom:6px;">ノリうち</div>
-      <button type="button" class="chip" id="nori-toggle" aria-pressed="false" onclick="toggleNoriuchi()">ノリうち OFF</button>
-    </div>
-    <div class="setting-row">
-      <div class="input-label" style="display:block;margin-bottom:6px;">イベント</div>
-      <input class="input-field" type="text" id="in-event" placeholder="例：じゃんじゃん来店" oninput="save()">
-    </div>
-  </div>
-  <button class="action-btn send" id="send-btn">📤 記録送信</button>
-  <button class="action-btn reset" id="reset-btn">🗑️ データリセット</button>
-  <div class="section" style="margin-top:10px;">
-    <div class="section-header"><div class="section-label">期待時給 カラー設定</div><div class="section-line"></div></div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-      <div>
-        <div class="input-label" style="display:block;margin-bottom:4px;color:#c8b400;">🟡 及第点（円以上）</div>
-        <input class="input-field" type="number" inputmode="numeric" id="th-warn" value="1500" oninput="saveThresholds()">
-      </div>
-      <div>
-        <div class="input-label" style="display:block;margin-bottom:4px;color:#39ff6e;">🟢 合格（円以上）</div>
-        <input class="input-field" type="number" inputmode="numeric" id="th-ok" value="1800" oninput="saveThresholds()">
-      </div>
-      <div>
-        <div class="input-label" style="display:block;margin-bottom:4px;color:#00d4ff;">🔵 良台（円以上）</div>
-        <input class="input-field" type="number" inputmode="numeric" id="th-good" value="2300" oninput="saveThresholds()">
-      </div>
-      <div>
-        <div class="input-label" style="display:block;margin-bottom:4px;color:#ff6bff;">🏆 感動（円以上）</div>
-        <input class="input-field" type="number" inputmode="numeric" id="th-great" value="2800" oninput="saveThresholds()">
-      </div>
-    </div>
-  </div>
+    <div class="field"><label>打ち手</label><div class="chip-select" id="uchi-chips"></div></div>
+    <div class="toggle"><span>ノリうち（記録は自分名義・半分）</span><button type="button" class="chip" id="nori-toggle" aria-pressed="false" onclick="toggleNoriuchi()">オフ</button></div>
+  </section>
+
+  <button class="send" id="send-btn">記録を送信</button>
+
+  <section class="group" aria-label="期待時給の段階">
+    <h2>期待時給の段階<span>円/時以上</span></h2>
+    <div class="th-row"><span class="lamp" style="background:var(--t1)"></span><div class="field"><label for="th-warn">及第</label><input class="n" type="number" inputmode="numeric" id="th-warn" value="1500" oninput="saveThresholds()"></div></div>
+    <div class="th-row"><span class="lamp" style="background:var(--t2)"></span><div class="field"><label for="th-ok">合格</label><input class="n" type="number" inputmode="numeric" id="th-ok" value="1800" oninput="saveThresholds()"></div></div>
+    <div class="th-row"><span class="lamp" style="background:var(--t3)"></span><div class="field"><label for="th-good">良台</label><input class="n" type="number" inputmode="numeric" id="th-good" value="2300" oninput="saveThresholds()"></div></div>
+    <div class="th-row"><span class="lamp" style="background:var(--t4)"></span><div class="field"><label for="th-great">神台</label><input class="n" type="number" inputmode="numeric" id="th-great" value="2800" oninput="saveThresholds()"></div></div>
+  </section>
+
+  <div class="toggle"><span>さらに暗く</span><button type="button" class="chip" id="night-toggle" aria-pressed="false">オフ</button></div>
+
+  <button class="danger" id="reset-btn">入力をすべて消す</button>
 </div>
 </div>
 
 <!-- 確認ダイアログ -->
 <div class="modal-overlay" id="dialogModal">
-  <div class="modal" style="max-height:auto;">
+  <div class="modal">
     <div class="modal-title" id="dialog-title">確認</div>
-    <div style="font-size:13px;color:var(--text2);margin:12px 0 20px;" id="dialog-msg"></div>
-    <div style="display:flex;gap:8px;">
-      <button id="dialog-cancel" style="flex:1;background:var(--surface3);border:1px solid var(--border);color:var(--text2);padding:12px;border-radius:var(--radius-sm);font-family:'Rajdhani',sans-serif;font-weight:700;font-size:13px;cursor:pointer;">キャンセル</button>
-      <button id="dialog-ok" style="flex:1;background:rgba(255,68,102,0.15);border:1px solid rgba(255,68,102,0.4);color:var(--red);padding:12px;border-radius:var(--radius-sm);font-family:'Rajdhani',sans-serif;font-weight:700;font-size:13px;cursor:pointer;">OK</button>
+    <div id="dialog-msg" style="font-size:13px;color:var(--fg2);white-space:pre-wrap;"></div>
+    <div class="actions">
+      <button class="btn sub" id="dialog-cancel">キャンセル</button>
+      <button class="btn primary" id="dialog-ok">実行</button>
     </div>
   </div>
 </div>
 
 <!-- 合言葉入力ダイアログ（値はDOMに残さない） -->
 <div class="modal-overlay" id="tokenModal">
-  <div class="modal" style="max-height:auto;">
+  <div class="modal">
     <div class="modal-title" id="token-title">合言葉</div>
-    <div style="font-size:13px;color:var(--text2);margin:12px 0 12px;" id="token-msg">合言葉を入力してください</div>
-    <input class="input-field is-manual" type="password" id="token-input" placeholder="合言葉" autocomplete="off" autocapitalize="off" spellcheck="false" style="margin-bottom:16px;">
-    <div style="display:flex;gap:8px;">
-      <button id="token-cancel" style="flex:1;background:var(--surface3);border:1px solid var(--border);color:var(--text2);padding:12px;border-radius:var(--radius-sm);font-family:'Rajdhani',sans-serif;font-weight:700;font-size:13px;cursor:pointer;">キャンセル</button>
-      <button id="token-ok" style="flex:1;background:linear-gradient(135deg,rgba(0,212,255,0.2),rgba(0,212,255,0.05));border:1px solid rgba(0,212,255,0.4);border-radius:var(--radius-sm);color:var(--accent);padding:12px;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:13px;cursor:pointer;">保存</button>
+    <div id="token-msg" style="font-size:13px;color:var(--fg2);">合言葉を入力してください</div>
+    <input class="input-field" type="password" id="token-input" placeholder="合言葉" autocomplete="off" autocapitalize="off" spellcheck="false">
+    <div class="actions">
+      <button class="btn sub" id="token-cancel">キャンセル</button>
+      <button class="btn primary" id="token-ok">保存</button>
     </div>
   </div>
 </div>
@@ -674,29 +606,28 @@ select.input-field{cursor:pointer;appearance:none;background-image:url("data:ima
 <!-- 当たりモーダル -->
 <div class="modal-overlay" id="hitModal">
   <div class="modal">
-    <button class="modal-close" id="modal-close-btn">✕</button>
+    <button class="modal-close" id="modal-close-btn" type="button">×</button>
     <div class="modal-title">当たり追加</div>
     <div class="modal-subtitle" id="modal-subtitle">機種を選択してください</div>
     <div class="round-input-grid" id="round-input-grid"></div>
     <div class="auto-calc-row">
-      <div class="auto-calc-label">ラウンドから計算した出玉目安 <span class="badge-auto">AUTO</span></div>
+      <div>ラウンドから計算した出玉目安</div>
       <div class="auto-calc-val" id="modal-auto-balls">0玉</div>
     </div>
-    <div class="input-group" style="margin-bottom:14px;">
-      <div class="input-label">合計出玉（実測） <span class="badge-manual">入力</span></div>
-      <input class="input-field is-manual" type="number" inputmode="numeric" placeholder="実測を入力" id="modal-balls">
+    <div class="field">
+      <label for="modal-balls">合計出玉（実測）</label>
+      <input class="n" type="number" inputmode="numeric" placeholder="実測を入力" id="modal-balls">
     </div>
-    <button class="modal-confirm-btn" id="modal-confirm-btn">確定</button>
+    <button class="modal-confirm-btn" id="modal-confirm-btn" type="button">確定</button>
   </div>
 </div>
 
-<nav class="bottom-nav">
-  <div class="nav-item active" id="nav-main"><div class="nav-icon">🎰</div><div class="nav-label">メイン</div></div>
-  <div class="nav-item" id="nav-hit"><div class="nav-icon">🎯</div><div class="nav-label">当たり</div></div>
-  <div class="nav-item" id="nav-border"><div class="nav-icon">📊</div><div class="nav-label">ボーダー</div></div>
-  <div class="nav-item" id="nav-setting"><div class="nav-icon">⚙️</div><div class="nav-label">設定</div></div>
+<nav class="bottom-nav" aria-label="画面の切り替え">
+  <button type="button" class="nav-item active" id="nav-main"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 16a8 8 0 0 1 16 0"/><path d="M12 16l4-5"/></svg>メイン</button>
+  <button type="button" class="nav-item" id="nav-hit"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2.5"/></svg>当たり</button>
+  <button type="button" class="nav-item" id="nav-border"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="4" width="14" height="16" rx="2"/><path d="M9 9h6M9 13h6M9 17h3"/></svg>機種</button>
+  <button type="button" class="nav-item" id="nav-setting"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h14M5 12h14M5 17h14"/><circle cx="9" cy="7" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="8" cy="17" r="1.6"/></svg>設定</button>
 </nav>
-
 <script>
 'use strict';
 
@@ -897,7 +828,7 @@ function updateInvestBallBadge() {
     document.getElementById('in-stock-start')?.value,
     document.getElementById('in-stock-end')?.value
   );
-  b.textContent = auto ? 'AUTO' : '入力';
+  b.textContent = auto ? '自動' : '入力';
   b.className = auto ? 'badge-auto' : 'badge-manual';
 }
 
@@ -976,7 +907,7 @@ function showStockBalanceNote() {
   }
   const current = document.getElementById('in-stock-start').value;
   const warning = current !== '' && Number(current) !== balance;
-  note.textContent = `台帳残高 ${balance.toLocaleString('ja-JP')}玉` + (warning ? '　⚠ 開始時貯玉と異なります。送信前に修正してください' : '');
+  note.textContent = `台帳残高 ${balance.toLocaleString('ja-JP')}玉` + (warning ? '　開始時貯玉と異なります。送信前に修正してください' : '');
   note.className = 'stock-balance-note' + (warning ? ' warn' : '');
 }
 
@@ -1034,6 +965,8 @@ function onInvestBallInput() {
 }
 
 window.addEventListener('DOMContentLoaded', async () => {
+  // 見た目の設定（さらに暗く）を先に適用する
+  loadNightMode();
   // キャッシュがあれば即座に表示
   const cache = localStorage.getItem('masters_cache');
   if (cache) {
@@ -1106,42 +1039,8 @@ function showLoading(show) {
     if (!el) {
       el = document.createElement('div');
       el.id = 'skeleton-overlay';
-      // メインタブのKPIカード・セクションをスケルトンで模倣
-      el.innerHTML = `
-        <div style="padding:14px 14px 0;">
-          <!-- 収支+時給スケルトン -->
-          <div class="sk-kpi-grid" style="margin-bottom:10px;">
-            <div class="sk-kpi-card" style="grid-column:1/-1;">
-              <div class="sk-row">
-                <div><div class="skeleton sk-label"></div><div class="skeleton sk-value-wide"></div></div>
-                <div><div class="skeleton sk-label"></div><div class="skeleton sk-value-wide"></div></div>
-              </div>
-            </div>
-            <div class="sk-kpi-card" style="grid-column:1/-1;padding:14px;">
-              <div class="skeleton sk-label"></div>
-              <div class="skeleton" style="height:32px;width:70%;margin-top:6px;"></div>
-            </div>
-            <div class="sk-kpi-card"><div class="skeleton sk-label"></div><div class="skeleton sk-value"></div></div>
-            <div class="sk-kpi-card"><div class="skeleton sk-label"></div><div class="skeleton sk-value"></div></div>
-          </div>
-          <!-- 回転数セクションスケルトン -->
-          <div class="sk-section">
-            <div class="skeleton sk-section-header"></div>
-            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:12px;">
-              <div><div class="skeleton" style="height:24px;margin-bottom:4px;"></div><div class="skeleton" style="height:10px;width:70%;"></div></div>
-              <div><div class="skeleton" style="height:24px;margin-bottom:4px;"></div><div class="skeleton" style="height:10px;width:70%;"></div></div>
-              <div><div class="skeleton" style="height:24px;margin-bottom:4px;"></div><div class="skeleton" style="height:10px;width:70%;"></div></div>
-            </div>
-            <div class="sk-row"><div class="skeleton sk-input"></div><div class="skeleton sk-input"></div></div>
-          </div>
-          <!-- 収支入力セクションスケルトン -->
-          <div class="sk-section">
-            <div class="skeleton sk-section-header"></div>
-            <div class="sk-row"><div class="skeleton sk-input"></div><div class="skeleton sk-input"></div></div>
-            <div class="sk-row"><div class="skeleton sk-input"></div><div class="skeleton sk-input"></div></div>
-            <div class="skeleton sk-input" style="margin-top:8px;"></div>
-          </div>
-        </div>`;
+      // 読み込み中は簡単な案内だけ出す（見た目は本画面と同じトークンを使う）
+      el.innerHTML = '<div class="group" style="text-align:center;color:var(--fg2);">読み込み中…</div>';
       document.getElementById('tab-main').appendChild(el);
     }
     el.style.display = 'block';
@@ -1221,10 +1120,65 @@ function bindEvents() {
   document.getElementById('rp-25').onclick  = () => setRatio(25);
   document.getElementById('rp-0').onclick   = () => setRatio(0);
 
+  // 時間の「今」ボタン（現在時刻を入れて onTimeInput を呼ぶ）
+  document.getElementById('time-start-now').onclick = () => fillNowTime('in-time-start');
+  document.getElementById('time-end-now').onclick   = () => fillNowTime('in-time-end');
+
+  // さらに暗く（夜間モード）
+  document.getElementById('night-toggle').onclick = toggleNightMode;
+
   // 送信・リセット・更新
   document.getElementById('send-btn').onclick  = doSend;
   document.getElementById('reset-btn').onclick = doReset;
   document.getElementById('refreshBtn').onclick = () => location.reload();
+}
+
+// =============================================
+// 時間の「今」ボタン：現在時刻を入れて onTimeInput を呼ぶ
+// =============================================
+function fillNowTime(inputId) {
+  const el = document.getElementById(inputId);
+  if (!el) return;
+  const now = new Date();
+  el.value = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+  onTimeInput(el);
+}
+
+// =============================================
+// 「さらに暗く」：トークン差し替え用のクラスを切り替え、設定を保存する
+// =============================================
+const NIGHT_KEY = 'night_mode';
+function applyNightMode(on) {
+  try { document.documentElement.classList.toggle('night', !!on); } catch(e) {}
+  const btn = document.getElementById('night-toggle');
+  if (btn) {
+    btn.textContent = on ? 'オン' : 'オフ';
+    btn.setAttribute('aria-pressed', String(!!on));
+    if (on) btn.classList.add('selected'); else btn.classList.remove('selected');
+  }
+}
+function loadNightMode() {
+  let on = false;
+  try { on = localStorage.getItem(NIGHT_KEY) === '1'; } catch(e) {}
+  applyNightMode(on);
+}
+function toggleNightMode() {
+  let on = false;
+  try { on = document.documentElement.classList.contains('night'); } catch(e) {}
+  on = !on;
+  try { localStorage.setItem(NIGHT_KEY, on ? '1' : '0'); } catch(e) {}
+  applyNightMode(on);
+}
+
+// =============================================
+// メモ：入力に合わせて高さを伸ばす（最小2行）
+// =============================================
+function autoGrowMemo() {
+  const el = document.getElementById('in-memo');
+  if (!el || !el.style) return;
+  el.style.height = 'auto';
+  const min = 44; // 2行ぶんの最低高さ
+  el.style.height = Math.max(el.scrollHeight || min, min) + 'px';
 }
 
 // =============================================
@@ -1234,7 +1188,7 @@ function showDialog(msg, onOk, okLabel, isAlert) {
   document.getElementById('dialog-msg').textContent = msg;
   const okBtn = document.getElementById('dialog-ok');
   const cancelBtn = document.getElementById('dialog-cancel');
-  okBtn.textContent = okLabel || 'OK';
+  okBtn.textContent = okLabel || '実行';
   cancelBtn.style.display = isAlert ? 'none' : '';
   document.getElementById('dialogModal').classList.add('show');
   okBtn.onclick = () => {
@@ -1245,7 +1199,7 @@ function showDialog(msg, onOk, okLabel, isAlert) {
     document.getElementById('dialogModal').classList.remove('show');
   };
 }
-function showAlert(msg) { showDialog(msg, null, 'OK', true); }
+function showAlert(msg) { showDialog(msg, null, '閉じる', true); }
 function showConfirm(msg, onOk) { showDialog(msg, onOk, '実行', false); }
 // 確認ダイアログを閉じる（古い警告状態を残さない）
 function hideDialog() {
@@ -1344,6 +1298,7 @@ function onMakerFilterChange() {
   updateHeader();
   updateGuard();
   updateTrialMode();
+  renderSpecRounds();
   recalc();
 }
 
@@ -1353,6 +1308,7 @@ function onKishuChange() {
   updateHeader();
   updateGuard();
   updateTrialMode();
+  renderSpecRounds();
   recalc();
   save();
 }
@@ -1378,7 +1334,7 @@ function updateNoriuchiMode() {
   if (toggle) {
     toggle.classList.toggle('selected', S.noriuchi);
     toggle.setAttribute('aria-pressed', String(S.noriuchi));
-    toggle.textContent = S.noriuchi ? 'ノリうち ON' : 'ノリうち OFF';
+    toggle.textContent = S.noriuchi ? 'オン' : 'オフ';
   }
 }
 
@@ -1503,7 +1459,7 @@ function calcSeisan() {
 function renderSeisan(r) {
   const warnEl = document.getElementById('seisan-warning');
   if (warnEl) {
-    if (r.warning) { warnEl.textContent = '⚠️ ' + r.warning; warnEl.style.display = ''; }
+    if (r.warning) { warnEl.textContent = r.warning; warnEl.style.display = ''; }
     else { warnEl.textContent = ''; warnEl.style.display = 'none'; }
   }
 
@@ -1556,7 +1512,8 @@ function buildUchiChips() {
   wrap.innerHTML = '';
   UCHI.filter(u => (typeof u === 'object' ? u.name : u) !== 'ノリうち').forEach((u, i) => {
     const name = typeof u === 'object' ? u.name : u;
-    const c = document.createElement('div');
+    const c = document.createElement('button');
+    c.type = 'button';
     c.className = 'chip' + (i === 0 ? ' selected' : '');
     c.textContent = name;
     c.onclick = () => {
@@ -1575,8 +1532,16 @@ function buildUchiChips() {
 }
 
 function updateHeader() {
-  document.getElementById('header-info').textContent =
-    (S.shop ? S.shop.name : '—') + ' / ' + (S.kishu ? S.kishu.name : '—');
+  // ヘッダーは1行だけ：店・機種・打ち手・台番号
+  const uchi = document.querySelector('#uchi-chips .chip.selected')?.textContent || '自分';
+  const daibanEl = document.getElementById('in-daiban');
+  const parts = [
+    S.shop ? S.shop.name : '店未選択',
+    S.kishu ? S.kishu.name : '機種未選択',
+    uchi,
+  ];
+  if (daibanEl && daibanEl.value) parts.push(daibanEl.value + '番');
+  document.getElementById('header-info').textContent = parts.join('　');
 }
 
 // =============================================
@@ -1657,35 +1622,37 @@ function confirmHit() {
 // =============================================
 function renderHitList() {
   const list = document.getElementById('hit-list');
-  list.innerHTML = '';
+  if (!list) return;
+  list.replaceChildren();
   S.hits.forEach((hit, i) => {
     const totalCount = hit.rounds.reduce((s,r)=>s+r.count, 0);
-    const label = totalCount > 1 ? '連荘 '+totalCount+'回' : '単発';
-    const chips = hit.rounds.map(r =>
-      '<div class="round-chip">'+r.name+' ×'+r.count+'</div>'
-    ).join('');
+    const label = totalCount > 1 ? '連チャン '+totalCount+'回' : '単発';
+    const roundsText = hit.rounds.map(r => r.name+' ×'+r.count).join('　');
 
     const row = document.createElement('div');
-    row.className = 'hit-row';
+    row.className = 'hit';
 
-    const top = document.createElement('div');
-    top.className = 'hit-row-top';
+    const numEl = document.createElement('span');
+    numEl.className = 'no num';
+    numEl.textContent = String(i + 1);
 
-    const numEl = document.createElement('div');
-    numEl.className = 'hit-num';
-    numEl.textContent = '#'+(i+1);
-
-    const typeEl = document.createElement('div');
-    typeEl.className = 'hit-type-badge';
+    const typeEl = document.createElement('span');
+    typeEl.className = 't';
     typeEl.textContent = label;
 
-    const ballsEl = document.createElement('div');
-    ballsEl.className = 'hit-total';
-    ballsEl.textContent = hit.balls.toLocaleString()+'玉';
+    const ballsEl = document.createElement('span');
+    ballsEl.className = 'b num';
+    ballsEl.textContent = fmtN(hit.balls)+'玉';
+
+    const roundsEl = document.createElement('span');
+    roundsEl.className = 'rs';
+    roundsEl.textContent = roundsText;
 
     const delBtn = document.createElement('button');
-    delBtn.className = 'hit-del';
+    delBtn.type = 'button';
+    delBtn.className = 'del';
     delBtn.textContent = '削除';
+    delBtn.setAttribute('aria-label', '当たり'+(i+1)+'を削除');
     (function(idx) {
       delBtn.onclick = function() {
         showConfirm('この当たり記録を削除しますか？', () => {
@@ -1697,13 +1664,7 @@ function renderHitList() {
       };
     })(i);
 
-    top.append(numEl, typeEl, ballsEl, delBtn);
-
-    const chipsEl = document.createElement('div');
-    chipsEl.className = 'round-chips';
-    chipsEl.innerHTML = chips;
-
-    row.append(top, chipsEl);
+    row.append(numEl, typeEl, ballsEl, roundsEl, delBtn);
     list.appendChild(row);
   });
 }
@@ -1716,7 +1677,11 @@ function setRatioVal(val) {
   document.getElementById('ratio-display').textContent = val+'%';
   document.getElementById('border-kitai-sub').textContent = '持玉比率 '+val+'% 時';
   ['100','75','50','25','0'].forEach(v => {
-    document.getElementById('rp-'+v).classList.toggle('active', String(S.ratio)===v);
+    const el = document.getElementById('rp-'+v);
+    if (!el) return;
+    const on = String(S.ratio)===v;
+    el.classList.toggle('active', on);
+    if (el.setAttribute) el.setAttribute('aria-pressed', String(on));
   });
   recalc();
 }
@@ -1805,7 +1770,7 @@ function renderRotSegments() {
     el.style.cssText = 'display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) 52px;gap:8px;margin-bottom:10px;align-items:center;';
     ['left', 'right'].forEach(side => {
       const input = document.createElement('input');
-      input.className = 'input-field is-manual';
+      input.className = 'input-field';
       input.type = 'number';
       input.inputMode = 'numeric';
       input.placeholder = 'G';
@@ -1817,14 +1782,14 @@ function renderRotSegments() {
     });
     const del = document.createElement('button');
     del.type = 'button';
-    del.className = 'hit-del';
+    del.className = 'del';
     del.textContent = '削除';
     del.setAttribute('aria-label', '区間' + (index + 1) + 'を削除');
     del.onclick = () => removeRotSegment(index);
     el.appendChild(del);
     const diff = document.createElement('div');
     diff.id = 'rot-segment-diff-' + index;
-    diff.style.cssText = 'grid-column:1/-1;font-size:11px;color:var(--text2);';
+    diff.style.cssText = 'grid-column:1/-1;font-size:11px;color:var(--fg2);';
     el.appendChild(diff);
     list.appendChild(el);
   });
@@ -1972,85 +1937,75 @@ function recalc() {
     : null;
 
   // =====================
-  // 表示
+  // 表示（ここは計算結果を画面に書き込むだけ。計算式はここより上で確定済み）
   // =====================
-  const cc = v => v >= 0 ? 'pos' : 'neg';
+  // 収支（下に時給・差玉）
+  setFg('kpi-kosshi', fmt(kosshi), kosshi);
+  setFg('kpi-jikyu', jikyu !== null ? fmt(jikyu) : '—', jikyu === null ? 0 : jikyu);
+  setFg('kpi-sagitama', fmt(Math.round(sagitama)) + '玉', sagitama);
+  // 仕事量（下に時給・運）
+  setFg('kpi-shigoto', shigoto !== null ? fmt(shigoto) : '—', shigoto === null ? 0 : shigoto);
+  setText('kpi-shigoto-sub', shigotoJikyu !== null ? fmt(shigotoJikyu) : '—');
+  setText('kpi-un', un !== null ? Math.round(un)+'%' : '—');
 
-  // 収支＋時給カード
-  const profitClass = cc(kosshi);
-  document.getElementById('card-kosshi').className = 'kpi-card '+profitClass;
-  el('kpi-kosshi', fmt(kosshi), 'kpi-value '+profitClass);
-  el('kpi-sagitama', '差玉 '+fmtN(Math.round(sagitama)));
-  if (jikyu !== null) {
-    const jikyuClass = cc(jikyu);
-    el('kpi-jikyu', fmt(jikyu), 'kpi-value '+jikyuClass);
-  } else {
-    el('kpi-jikyu', '—', 'kpi-value');
-  }
-  el('kpi-kado', '稼働 '+(kadoH ? kadoH.toFixed(1)+'h' : '—'));
+  // 稼働時間と、終了時間が未入力かどうか
+  setText('kpi-kado', kadoH ? kadoH.toFixed(1) : '—');
+  const endTimeEl  = document.getElementById('in-time-end');
+  const endEmptyEl = document.getElementById('time-end-empty');
+  if (endEmptyEl) endEmptyEl.hidden = !!(endTimeEl && endTimeEl.value);
 
-  // 期待時給
-  if (kitaiJikyu !== null) {
-    const kc = kitaiColor(kitaiJikyu);
-    const kitaiEl = document.getElementById('kpi-kitai');
-    kitaiEl.textContent = fmt(kitaiJikyu);
-    kitaiEl.className = 'kpi-value';
-    kitaiEl.style.color = kc.color;
-    // 台評価ラベルのみ表示（持玉%小表示は削除→新設の右パネルに移動）
-    document.getElementById('kpi-kitai-sub').textContent = kc.label;
-    document.getElementById('border-kitai-val').textContent = kitaiWhatIf !== null ? fmt(kitaiWhatIf) : '—';
-    document.getElementById('border-kitai-val').style.color = kitaiWhatIf !== null ? kitaiColor(kitaiWhatIf).color : '';
-  } else {
-    const kitaiEl = document.getElementById('kpi-kitai');
-    kitaiEl.textContent = '—';
-    kitaiEl.className = 'kpi-value info';
-    kitaiEl.style.color = '';
-    document.getElementById('kpi-kitai-sub').textContent = '—';
-    el('border-kitai-val', '—');
-  }
-
-  // 仕事量
-  if (shigoto !== null) {
-    const sc = cc(shigoto);
-    document.getElementById('card-shigoto').className = 'kpi-card '+sc;
-    el('kpi-shigoto', fmt(shigoto), 'kpi-value '+sc);
-    el('kpi-shigoto-sub', '時給 '+(shigotoJikyu !== null ? fmt(shigotoJikyu) : '—'));
-  } else {
-    document.getElementById('card-shigoto').className = 'kpi-card';
-    el('kpi-shigoto', '—', 'kpi-value');
-  }
-
-  // 運
-  if (un !== null) {
-    const uc = un >= 100 ? 'pos' : un >= 70 ? 'warn' : 'neg';
-    document.getElementById('card-un').className = 'kpi-card '+uc;
-    el('kpi-un', Math.round(un)+'%', 'kpi-value '+uc);
-  } else {
-    document.getElementById('card-un').className = 'kpi-card';
-    el('kpi-un', '—', 'kpi-value');
-  }
-
-  // 回転数
+  // 回転数・回転率・ボーダー（メイン）
   setText('disp-total-rot',  soKaiten > 0 ? fmtN(soKaiten) : '—');
   setText('disp-normal-rot', normalKaiten > 0 ? fmtN(normalKaiten) : '—');
   setText('disp-rot-rate',   kaitenRitsu ? kaitenRitsu.toFixed(1) : '—');
+  setText('main-border', border ? border.toFixed(1) : '—');
+  if (border && kaitenRitsu) {
+    const dMain = kaitenRitsu - border;
+    setFg('main-border-diff', fmt1(dMain), dMain);
+  } else {
+    setText('main-border-diff', '—');
+  }
 
-  // 当たりサマリー
+  // 期待時給の試算（機種タブの持ち玉比率スライダー。送信・報酬には使わない）
+  document.getElementById('border-kitai-val').textContent = kitaiWhatIf !== null ? fmt(kitaiWhatIf) : '—';
+  document.getElementById('border-kitai-val').style.color = kitaiWhatIf !== null ? kitaiColor(kitaiWhatIf).color : '';
+
+  // 当たりサマリー（データランプ系）
   setText('sum-hit-today',  todayHits+'回');
   setText('sum-hit-total',  dataHitCount+'回');
   setText('sum-hit-balls',  fmtN(hitBalls)+'玉');
   setBadge('sum-total-delta', todayHits > 0 ? fmtDelta(hitBalls - riron)+'玉' : '—', hitBalls - riron);
   setBadge('sum-hit-delta',  todayHits > 0 ? fmtDelta(Math.round(hitDelta))+'玉' : '—', hitDelta);
 
-  // ボーダータブ
-  setText('disp-border',     border ? border.toFixed(2)+' 回/千円' : '—');
-  setText('disp-border-rot', kaitenRitsu ? kaitenRitsu.toFixed(1)+' 回/千円' : '—');
+  // 当たりタブ：初当たり回数・初当たり確率（実測とスペック）・初当たり1回あたりの平均出玉
+  const hitCount      = S.hits.length;
+  const jitsuHatsua   = hatsuaJikkyoRate(hitCount, normalKaiten);
+  const avgHatsuBalls = hatsuaAverageBalls(hitBalls, hitCount);
+  setText('hit-count',      hitCount + '回');
+  setText('hit-jitsu-rate', jitsuHatsua !== null ? '1/' + fmtN(Math.round(jitsuHatsua)) : '—');
+  setText('hit-hatsua-spec', 'スペック 1/' + k.hatsua.toFixed(1));
+  setText('hit-avg-balls',  avgHatsuBalls !== null ? fmtN(Math.round(avgHatsuBalls)) + '玉' : '—');
+  const round11Note = document.getElementById('hit-round11-note');
+  if (round11Note) round11Note.hidden = !hasRound11Plus(k);
+
+  // 機種タブ：スペック・ボーダー
+  setText('disp-spec-name',   k.name);
+  setText('disp-spec-maker',  k.maker || '—');
+  setText('disp-hatsua',      '1/'+k.hatsua.toFixed(1));
+  setText('disp-spec-total',  k.total ? '1/'+k.total.toFixed(1) : '—');
+  setText('disp-spec-heikin', fmtN(Math.round(heikin))+'玉');
+  setText('disp-spec-heiren', k.heiren.toFixed(2)+'連');
+  setText('disp-spec-total1r', k.total1R ? '1/'+k.total1R.toFixed(1) : '—');
+  setText('disp-spec-jikan',  k.jikan ? k.jikan+'回' : '—');
+  setText('disp-spec-kankin', '換金率 '+(100/kokan).toFixed(1)+'円');
+  setText('disp-border',      border ? border.toFixed(1)+' 回/千円' : '—');
+  setText('disp-border-rot',  kaitenRitsu ? kaitenRitsu.toFixed(1)+' 回/千円' : '—');
   if (border && kaitenRitsu) {
     const diff = kaitenRitsu - border;
     setBadge('disp-border-diff', fmtDelta(parseFloat(diff.toFixed(2))), diff);
   } else {
     const el2 = document.getElementById('disp-border-diff');
-    el2.textContent = '—'; el2.className = 'badge neu';
+    if (el2) { el2.textContent = '—'; el2.className = 'badge neu'; }
   }
   // 累積差玉・報酬・持玉比率・累計平均期待時給
   const uchiEl     = document.querySelector('#uchi-chips .chip.selected');
@@ -2061,7 +2016,7 @@ function recalc() {
   const isDaichi   = !isJibun && !isNoriuchi; // 代打ち（累積管理対象）
   const ruikeiCard = document.getElementById('card-ruikei');
 
-  // ① 持玉比率（現在台：常時計算・常時表示）
+  // ① 持玉比率（現在台：常時計算）
   // 持玉使用 = 当たり出玉のうち持ち帰らず打ち続けた分（≥0）
   const mochiUsed     = Math.max(0, hitBalls - recover); // recoverはwatashita込み
   const curMochiAll   = investBall + mochiUsed;          // 貯玉(moratta込み)＋持玉使用
@@ -2075,23 +2030,20 @@ function recalc() {
   const cumTotal    = cumChoTama + cumGenBalls;
   const cumMochiPct = (isDaichi && cumTotal > 0) ? Math.round(cumChoTama / cumTotal * 100) : null;
 
-  // ③ 持玉比率ブロック（常時表示）
-  const mochiBlock = document.getElementById('kpi-mochi-block');
-  mochiBlock.style.display = '';
-  const kc2        = kitaiJikyu !== null ? kitaiColor(kitaiJikyu) : {color:'var(--text2)', label:''};
+  // 今の持ち玉比率（実測）での期待時給。現金を入れるほど実力より下がる
+  const kitaiNow = (kitaiJikyu !== null && curMochiPct !== null)
+    ? calcKitaiJikyu(k, heikin, kaitenRitsu, kokan, curMochiPct / 100) : null;
+
+  // ③ 期待時給メーター（数字と点線の針＝実力、実線の針＝今）
+  renderKitaiMeter(kitaiJikyu, kitaiNow, curMochiPct);
+
+  // ④ 持玉比率（代打ちの報酬欄の中に出す）
+  const kc2        = kitaiJikyu !== null ? kitaiColor(kitaiJikyu) : {color:'var(--fg2)', label:''};
   const mochiValEl = document.getElementById('kpi-mochi-val');
   mochiValEl.textContent = curMochiPct !== null ? curMochiPct + '%' : '—%';
   mochiValEl.style.color  = kc2.color;
   document.getElementById('kpi-mochi-ruikei').textContent =
-    cumMochiPct !== null ? '累計: ' + cumMochiPct + '%' : '';
-  // 今の持ち玉比率（実測）での期待時給。現金を入れるほど実力より下がる
-  const kitaiNow = (kitaiJikyu !== null && curMochiPct !== null)
-    ? calcKitaiJikyu(k, heikin, kaitenRitsu, kokan, curMochiPct / 100) : null;
-  const kitaiNowEl = document.getElementById('kpi-kitai-now');
-  if (kitaiNowEl) {
-    kitaiNowEl.textContent = kitaiNow !== null ? '今の持玉比率 ' + curMochiPct + '%：' + fmt(kitaiNow) : '';
-    kitaiNowEl.style.color = kitaiNow !== null ? kitaiColor(kitaiNow).color : '';
-  }
+    cumMochiPct !== null ? '累計 ' + cumMochiPct + '%' : '';
 
   if (isDaichi) {
     // 報酬の平均はAppBと同じ実効時間で加重する。
@@ -2099,15 +2051,15 @@ function recalc() {
     const avgKitai = getRewardAverage(prev, currentReward);
     const avgKc         = kitaiColor(avgKitai);
 
-    // ⑤ 累計平均期待時給ブロック表示（代打ちのみ）
+    // ⑤ 累計平均期待時給（代打ちのみ）
     const avgBlock = document.getElementById('kpi-kitai-avg-block');
     avgBlock.style.display = '';
     const avgValEl = document.getElementById('kpi-kitai-avg-val');
     avgValEl.textContent = Math.round(avgKitai).toLocaleString('ja-JP') + '円';
     avgValEl.style.color  = avgKc.color;
-    document.getElementById('kpi-kitai-avg-label').textContent = avgKc.label.split(' ')[0]; // 絵文字のみ
+    document.getElementById('kpi-kitai-avg-label').textContent = avgKc.label;
 
-    // ⑥ 累積差玉・報酬カード（代打ちのみ）
+    // ⑥ 累積差玉・報酬（代打ちのみ）
     ruikeiCard.style.display = '';
     const ruikeiSagi   = prev.sagitama + Math.round(sagitama);
     const ruikeiGenkin = prev.genkinInvest + invest;
@@ -2116,27 +2068,20 @@ function recalc() {
     const startLine    = (avgKitai >= 1800) ? 5000 : 10000;
     const koujo        = rewardInfo.koujo;
     const rateLabel    = (rewardInfo.rate * 100).toFixed(1);
-    const koujoLabel   = '控除率' + rateLabel + '% 控除額¥' + fmtN(koujo);
-    const sagiClass    = ruikeiSagi >= 0 ? 'pos' : 'neg';
-    el('kpi-ruikei-sagitama', fmtN(Math.round(ruikeiSagi))+'玉', 'kpi-value '+sagiClass);
-    document.getElementById('kpi-ruikei-sub').textContent = '前台引継: '+fmtN(Math.round(prev.sagitama))+'玉';
-    el('kpi-hoshu', prev.rewardVersion === 1 ? '¥'+fmtN(hoshu) : '確認中', 'kpi-value pos');
+    const koujoLabel   = '控除率' + rateLabel + '% 控除額 ¥' + fmtN(koujo);
+    setFg('kpi-ruikei-sagitama', fmt(Math.round(ruikeiSagi))+'玉', ruikeiSagi);
+    document.getElementById('kpi-ruikei-sub').textContent = '前台引継 '+fmt(Math.round(prev.sagitama))+'玉';
+    setText('kpi-hoshu', prev.rewardVersion === 1 ? '¥'+fmtN(hoshu) : '確認中');
     const startLabel = startLine === 5000 ? '5千スタート' : '1万スタート';
     document.getElementById('kpi-hoshu-sub').textContent =
       ruikeiSagi >= startLine
-        ? '✅ ' + startLabel + ' | ' + koujoLabel
-        : startLabel + ' | 残り ' + fmtN(startLine - Math.max(0, ruikeiSagi)) + '玉 | ' + koujoLabel;
+        ? startLabel + '　' + koujoLabel
+        : startLabel + '　残り ' + fmtN(startLine - Math.max(0, ruikeiSagi)) + '玉　' + koujoLabel;
   } else {
-    // 自分・ノリうち：累積差玉カードと累計期待時給ブロックは非表示
+    // 自分・ノリうち：報酬欄は非表示
     ruikeiCard.style.display = 'none';
     document.getElementById('kpi-kitai-avg-block').style.display = 'none';
   }
-
-  setText('disp-hatsua',     '1/'+k.hatsua.toFixed(1));
-  setText('disp-spec-heikin', fmtN(Math.round(heikin))+'玉');
-  setText('disp-spec-heiren', k.heiren.toFixed(2)+'連');
-  setText('disp-spec-total',  k.total.toFixed(2)+'円/千円');
-  setText('disp-spec-maker',  k.maker || '—');
 }
 
 // =============================================
@@ -2389,15 +2334,16 @@ async function doSend() {
   );
   // ================================================================
 
-  // 送信確認
+  // 送信確認（終了時間が空なら、いちばん上で知らせる）
+  const endMissing = tEnd ? '' : '終了時間が未入力です\n';
   const noriNote = isNoriuchi ? '\n※ノリうちモード：全数値を÷2して自分名義で記録します' : '';
   const stockLine = stockConfirmationLine(stock, investBallRaw);
   const initialStockNote = stock.stockCard && stockBalancesCache && !stockBalance
     ? `\n初回残高 ${Number(stock.stockStart).toLocaleString('ja-JP')}玉を登録します` : '';
   const stockNote = (stockLine ? `\n${stockLine}` : '') + initialStockNote;
   const confirmMsg = isTrial
-    ? `【送信確認】（試しうち）\n日付：${date}\n店：${S.shop.name}　台番号：${daiban || '未入力'}\n打ち手：${sendUchi}\n\n収支：${fmt(sendKosshi)}円\n差玉：${fmtN(Math.round(sendSagitama))}玉${noriNote}${stockNote}\n\n送信しますか？`
-    : `【送信確認】\n日付：${date}\n店：${S.shop.name}　台番号：${daiban || '未入力'}\n機種：${S.kishu.name}\n打ち手：${sendUchi}\n\n収支：${fmt(sendKosshi)}円\n稼働：${sendJikanStr || '—'}\n仕事量：${sendShigoto !== null ? fmt(Math.round(sendShigoto))+'円' : '—'}\n${sendUchi !== '自分' ? '報酬：¥'+fmtN(sendHoshu)+(sendKoujoAmt > 0 ? '（控除¥'+fmtN(sendKoujoAmt)+'）' : '') : ''}${noriNote}${stockNote}\n\n送信しますか？`;
+    ? `${endMissing}【送信確認】（試しうち）\n日付：${date}\n店：${S.shop.name}　台番号：${daiban || '未入力'}\n打ち手：${sendUchi}\n\n収支：${fmt(sendKosshi)}円\n差玉：${fmtN(Math.round(sendSagitama))}玉${noriNote}${stockNote}\n\n送信しますか？`
+    : `${endMissing}【送信確認】\n日付：${date}\n店：${S.shop.name}　台番号：${daiban || '未入力'}\n機種：${S.kishu.name}\n打ち手：${sendUchi}\n\n収支：${fmt(sendKosshi)}円\n稼働：${sendJikanStr || '—'}\n仕事量：${sendShigoto !== null ? fmt(Math.round(sendShigoto))+'円' : '—'}\n${sendUchi !== '自分' ? '報酬：¥'+fmtN(sendHoshu)+(sendKoujoAmt > 0 ? '（控除¥'+fmtN(sendKoujoAmt)+'）' : '') : ''}${noriNote}${stockNote}\n\n送信しますか？`;
   showConfirm(
     confirmMsg,
     async () => {
@@ -2429,17 +2375,17 @@ async function doSend() {
               rewardWeight: currentReward.weight,
             });
           }
-          showAlert('✅ 送信完了！');
+          showAlert('送信しました');
           // 日付・打ち手・店・機種を保持してリロード（引き継ぎ差玉が0になるバグ修正）
           setTimeout(() => afterSendReload(), 1500);
         } else {
-          showAlert('❌ 送信失敗：' + (data.error || '不明なエラー'));
+          showAlert('送信できませんでした：' + (data.error || '不明なエラー'));
         }
       } catch(e) {
         showAlert('送信結果を確認できません。再送する前にappbの記録と貯玉台帳を確認してください');
       } finally {
         document.getElementById('send-btn').disabled = false;
-        document.getElementById('send-btn').textContent = '📤 記録送信';
+        document.getElementById('send-btn').textContent = '記録を送信';
       }
     }
   );
@@ -2594,14 +2540,151 @@ function loadThresholds() {
     if (t.great) document.getElementById('th-great').value = t.great;
   } catch(e) {}
 }
+// ==== 表示用の純関数（ここから）
+// 期待時給メーターの下限・上限（円/時）。範囲外は端に丸める。
+const KITAI_METER_MIN = 800;
+const KITAI_METER_MAX = 3400;
+// 5段階の名前（0=見送り … 4=神台）。内部キー（warn/ok/good/great）は変えない。
+const KITAI_TIER_NAMES = ['見送り', '及第', '合格', '良台', '神台'];
+
+// 期待時給をメーター上の位置（%）に変換する。数値でなければ null。
+function kitaiMeterPos(v) {
+  if (v === null || v === undefined || !Number.isFinite(Number(v))) return null;
+  const p = (Number(v) - KITAI_METER_MIN) / (KITAI_METER_MAX - KITAI_METER_MIN) * 100;
+  return Math.min(100, Math.max(0, p));
+}
+
+// 期待時給の段階（0〜4）。しきい値未満は 0（見送り）。数値でなければ -1。
+function kitaiTier(v, thresholds) {
+  if (v === null || v === undefined || !Number.isFinite(Number(v))) return -1;
+  const t = thresholds;
+  if (v >= t.great) return 4;
+  if (v >= t.good)  return 3;
+  if (v >= t.ok)    return 2;
+  if (v >= t.warn)  return 1;
+  return 0;
+}
+
+// メーターの5区間。区間の幅はしきい値の間隔に比例させる（最低1）。
+function kitaiMeterBands(thresholds) {
+  const t = thresholds;
+  const edges = [KITAI_METER_MIN, t.warn, t.ok, t.good, t.great, KITAI_METER_MAX];
+  const widths = [];
+  for (let i = 0; i < edges.length - 1; i++) widths.push(Math.max(1, edges[i + 1] - edges[i]));
+  return { edges, widths };
+}
+
+// 段階に対応する色とラベル。number は大きな数字に使う色（見送りは灰、及第は通常）。
+function kitaiTierStyle(tier) {
+  if (tier < 0) return { color:'var(--fg2)', number:'var(--fg2)', label:'—' };
+  const color = 'var(--t' + tier + ')';
+  const number = tier === 0 ? 'var(--fg2)' : tier === 1 ? 'var(--fg)' : color;
+  return { color, number, label: KITAI_TIER_NAMES[tier] };
+}
+
+// 初当たり確率（実測）＝通常回転 ÷ 記録の件数。件数0・回転0は null。
+function hatsuaJikkyoRate(hitCount, normalKaiten) {
+  if (!(hitCount > 0) || !(normalKaiten > 0)) return null;
+  return normalKaiten / hitCount;
+}
+
+// 初当たり1回あたりの平均出玉＝当たり出玉合計 ÷ 件数。件数0は null。
+function hatsuaAverageBalls(hitBalls, hitCount) {
+  if (!(hitCount > 0)) return null;
+  return hitBalls / hitCount;
+}
+
+// 機種マスタのラウンドに11R以上があるか（データランプとのズレ注意の判定）。
+function hasRound11Plus(kishu) {
+  if (!kishu || !Array.isArray(kishu.rounds)) return false;
+  return kishu.rounds.some(r => (parseInt(String(r.name).replace(/[^0-9]/g, ''), 10) || 0) >= 11);
+}
+// ==== 表示用の純関数（ここまで）
+
 function kitaiColor(v) {
-  if (v === null) return {color:'var(--text2)', label:'—'};
+  const s = kitaiTierStyle(kitaiTier(v, getThresholds()));
+  return { color: s.number, label: s.label };
+}
+
+// 期待時給メーターの描画。
+// full=実力（持ち玉100%）、now=今の持ち玉比率での期待時給、mochiPct=今の持ち玉比率(%)
+// now か mochiPct が無いときは「今」の針と行を出さない。計算はしない。
+function renderKitaiMeter(full, now, mochiPct) {
+  const meter = document.getElementById('kitai-meter');
+  if (!meter) return;
+  const bandsEl = document.getElementById('kitai-bands');
+  const scaleEl = document.getElementById('kitai-scale');
+  const numEl   = document.getElementById('kpi-kitai');
+  const tierEl  = document.getElementById('kpi-kitai-sub');
+  const nowLine = document.getElementById('kitai-now-line');
+  const nowNum  = document.getElementById('kpi-kitai-now');
+  const nowRatio= document.getElementById('kitai-now-ratio');
+  const needFull= document.getElementById('kitai-needle-full');
+  const needNow = document.getElementById('kitai-needle-now');
+
   const t = getThresholds();
-  if (v >= t.great) return {color:'#ff6bff', label:'🏆 感動'};   // 派手なマゼンタ
-  if (v >= t.good)  return {color:'#00d4ff', label:'🔵 良台'};   // シアン
-  if (v >= t.ok)    return {color:'#39ff6e', label:'🟢 合格'};   // グリーン
-  if (v >= t.warn)  return {color:'#c8b400', label:'🟡 及第点'}; // 落ち着いた黄
-  return              {color:'var(--red)',   label:'🔴 見送り'};  // レッド
+  const tier = kitaiTier(full, t);
+  const style = kitaiTierStyle(tier);
+
+  if (numEl) numEl.textContent = (full !== null && full !== undefined && Number.isFinite(Number(full))) ? fmt(full) : '—';
+  if (tierEl) tierEl.textContent = style.label;
+  meter.style.setProperty('--tier-color', style.color);
+  meter.style.setProperty('--num-color', style.number);
+
+  // 目盛り（区間幅はしきい値に比例、実力の段階まで点灯）
+  const geo = kitaiMeterBands(t);
+  if (bandsEl) {
+    bandsEl.replaceChildren();
+    geo.widths.forEach((w, i) => {
+      const band = document.createElement('div');
+      const lit = tier >= 0 && i <= tier;
+      band.className = 'band' + (lit ? ' lit' : '');
+      band.style.flex = String(w);
+      if (lit) band.style.background = style.color;
+      bandsEl.appendChild(band);
+    });
+  }
+  if (scaleEl) {
+    scaleEl.replaceChildren();
+    const labels = ['見送り', fmt(t.warn), fmt(t.ok), fmt(t.good), fmt(t.great)];
+    geo.edges.slice(0, -1).forEach((edge, i) => {
+      const s = document.createElement('span');
+      s.textContent = labels[i];
+      s.style.left = i === 0 ? '0' : kitaiMeterPos(edge) + '%';
+      scaleEl.appendChild(s);
+    });
+  }
+
+  // 針：点線＝実力、実線＝今
+  if (needFull) needFull.style.left = (kitaiMeterPos(full) ?? 0) + '%';
+  const hasNow = now !== null && now !== undefined && Number.isFinite(Number(now))
+    && mochiPct !== null && mochiPct !== undefined;
+  if (nowLine) nowLine.hidden = !hasNow;
+  if (needNow) needNow.hidden = !hasNow;
+  if (hasNow) {
+    if (needNow) needNow.style.left = kitaiMeterPos(now) + '%';
+    if (nowRatio) nowRatio.textContent = mochiPct + '%';
+    if (nowNum) {
+      nowNum.textContent = fmt(now);
+      nowNum.style.color = kitaiTierStyle(kitaiTier(now, t)).number;
+    }
+  }
+}
+
+// 機種タブ：ラウンドの内訳（S.kishu.rounds の R と出玉）
+function renderSpecRounds() {
+  const dl = document.getElementById('spec-rounds');
+  if (!dl) return;
+  dl.replaceChildren();
+  if (!S.kishu || !Array.isArray(S.kishu.rounds)) return;
+  S.kishu.rounds.forEach(r => {
+    const dt = document.createElement('dt');
+    dt.textContent = r.name;
+    const dd = document.createElement('dd');
+    dd.className = 'num';
+    dd.textContent = fmtN(r.balls) + '玉';
+    dl.append(dt, dd);
+  });
 }
 
 function el(id, text, cls) {
@@ -2615,7 +2698,18 @@ function setText(id, text) {
 }
 function fmtN(n) { return Math.round(n).toLocaleString('ja-JP'); }
 function fmt(n)  { const r = Math.round(n); return (r>=0?'+':'')+r.toLocaleString('ja-JP'); }
+function fmt1(n) { return (n >= 0 ? '+' : '') + n.toFixed(1); }
 function fmtDelta(n) { return (n>=0?'▲ +':'▼ ')+Math.round(n).toLocaleString('ja-JP'); }
+// 値の符号で plus/minus を付け替える（表示用）
+function setFg(id, text, val) {
+  const e = document.getElementById(id);
+  if (!e) return;
+  e.textContent = text;
+  e.classList.remove('plus');
+  e.classList.remove('minus');
+  if (val > 0) e.classList.add('plus');
+  else if (val < 0) e.classList.add('minus');
+}
 function setBadge(id, text, val) {
   const e = document.getElementById(id);
   if (!e) return;
@@ -2727,6 +2821,8 @@ function loadData() {
     updateHeader();
     updateTrialMode();   // 試しうちモード復元
     updateNoriuchiMode(); // ノリうちモード復元
+    renderSpecRounds();   // 機種タブのラウンド内訳
+    autoGrowMemo();       // メモの高さを内容に合わせる
   } catch(e) {}
 }
 
