@@ -243,6 +243,7 @@ select.input-field{cursor:pointer;appearance:none;background-image:url("data:ima
           <div>
             <div class="kpi-value info" id="kpi-kitai" style="font-size:26px;">—</div>
             <div class="kpi-sub" id="kpi-kitai-sub">—</div>
+            <div class="kpi-sub" id="kpi-kitai-now"></div>
           </div>
           <!-- 持玉比率（代打ち時のみ表示） -->
           <div id="kpi-mochi-block" style="display:none;text-align:right;">
@@ -1724,10 +1725,20 @@ function setRatio(val) {
   setRatioVal(val);
 }
 
+// ==== 期待時給の純関数（ここから）
 function getExpectedCostPerBall(kokan, ratio) {
   const kankin = 100 / kokan;
   return (kankin * ratio) + (4 * (1 - ratio));
 }
+// 持ち玉比率 ratio（0〜1）での期待時給。ratio=1 が実力（持ち玉100%）で、送信と報酬に使う。
+function calcKitaiJikyu(k, heikin, kaitenRitsu, kokan, ratio) {
+  if (!k || !kaitenRitsu || !(k.total > 0) || !(kokan > 0)) return null;
+  const kankin = 100 / kokan;
+  const zenki  = heikin * k.jikan / k.total * kankin;
+  const koki   = 250 * k.jikan / kaitenRitsu * getExpectedCostPerBall(kokan, ratio);
+  return zenki - koki;
+}
+// ==== 期待時給の純関数（ここまで）
 
 // =============================================
 // メイン計算
@@ -1935,14 +1946,10 @@ function recalc() {
   // 期待時給（試しうちはスキップ）
   // 持玉比率に応じて、投資1玉あたりのコストを
   // 「持玉の換金単価」と「現金4円」の加重平均で評価する
-  let kitaiJikyu = null;
-  if (!isTrial && kaitenRitsu) {
-    const kankin = 100 / kokan;
-    const costPerBall = getExpectedCostPerBall(kokan, ratio);
-    const zenki  = heikin * k.jikan / k.total * kankin;
-    const koki   = 250 * k.jikan / kaitenRitsu * costPerBall;
-    kitaiJikyu = zenki - koki;
-  }
+  // 実力（持ち玉100%）：表示の段階・送信・報酬に使う。スライダーの影響を受けない
+  const kitaiJikyu   = (!isTrial && kaitenRitsu) ? calcKitaiJikyu(k, heikin, kaitenRitsu, kokan, 1) : null;
+  // 試算（ボーダータブのスライダーの比率）：ボーダータブの表示だけに使う
+  const kitaiWhatIf  = (!isTrial && kaitenRitsu) ? calcKitaiJikyu(k, heikin, kaitenRitsu, kokan, ratio) : null;
 
   // 仕事量（試しうちはスキップ、total1R=0の場合は計算不能→null表示）
   let shigoto = null;
@@ -1991,8 +1998,8 @@ function recalc() {
     kitaiEl.style.color = kc.color;
     // 台評価ラベルのみ表示（持玉%小表示は削除→新設の右パネルに移動）
     document.getElementById('kpi-kitai-sub').textContent = kc.label;
-    document.getElementById('border-kitai-val').textContent = fmt(kitaiJikyu);
-    document.getElementById('border-kitai-val').style.color = kc.color;
+    document.getElementById('border-kitai-val').textContent = kitaiWhatIf !== null ? fmt(kitaiWhatIf) : '—';
+    document.getElementById('border-kitai-val').style.color = kitaiWhatIf !== null ? kitaiColor(kitaiWhatIf).color : '';
   } else {
     const kitaiEl = document.getElementById('kpi-kitai');
     kitaiEl.textContent = '—';
@@ -2077,6 +2084,14 @@ function recalc() {
   mochiValEl.style.color  = kc2.color;
   document.getElementById('kpi-mochi-ruikei').textContent =
     cumMochiPct !== null ? '累計: ' + cumMochiPct + '%' : '';
+  // 今の持ち玉比率（実測）での期待時給。現金を入れるほど実力より下がる
+  const kitaiNow = (kitaiJikyu !== null && curMochiPct !== null)
+    ? calcKitaiJikyu(k, heikin, kaitenRitsu, kokan, curMochiPct / 100) : null;
+  const kitaiNowEl = document.getElementById('kpi-kitai-now');
+  if (kitaiNowEl) {
+    kitaiNowEl.textContent = kitaiNow !== null ? '今の持玉比率 ' + curMochiPct + '%：' + fmt(kitaiNow) : '';
+    kitaiNowEl.style.color = kitaiNow !== null ? kitaiColor(kitaiNow).color : '';
+  }
 
   if (isDaichi) {
     // 報酬の平均はAppBと同じ実効時間で加重する。
@@ -2280,7 +2295,6 @@ async function doSend() {
   const memo       = document.getElementById('in-memo').value.trim();
   const kokan      = S.shop.kokan;
   const k          = S.kishu;
-  const ratio      = S.ratio / 100;
 
   // 打ち手取得
   const uchiEl = document.querySelector('#uchi-chips .chip.selected');
@@ -2327,14 +2341,8 @@ async function doSend() {
     if (totalUsed > 0) kaitenRitsu = soKaiten / (totalUsed / 250);
   }
 
-  let kitaiJikyu = null;
-  if (!isTrial && kaitenRitsu) {
-    const kankin = 100 / kokan;
-    const costPerBall = getExpectedCostPerBall(kokan, ratio);
-    const zenki  = heikin * k.jikan / k.total * kankin;
-    const koki   = 250 * k.jikan / kaitenRitsu * costPerBall;
-    kitaiJikyu   = zenki - koki;
-  }
+  // 送信と報酬は常に持ち玉100%（実力）。ボーダータブのスライダーは使わない
+  const kitaiJikyu = (!isTrial && kaitenRitsu) ? calcKitaiJikyu(k, heikin, kaitenRitsu, kokan, 1) : null;
 
   let shigoto = null;
   if (!isTrial) {
