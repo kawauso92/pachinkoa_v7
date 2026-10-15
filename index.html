@@ -220,6 +220,8 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield;}
 .seisan-table .input-field{font-size:13px;padding:6px 4px;min-height:38px;}
 .seisan-warning{padding:8px 10px;border:1px solid var(--warn);border-radius:var(--r-ctl);color:var(--warn);font-size:12px;line-height:1.4;}
 .seisan-result{padding:10px;border:1px solid var(--rule);border-radius:var(--r-ctl);}
+/* 清算計算機の「清算をクリア」：控えめ（塗りなし・細い枠） */
+.seisan-clear{margin-top:10px;width:100%;background:none;border:1px solid var(--rule);border-radius:var(--r-ctl);color:var(--fg2);font-size:12px;padding:10px;cursor:pointer;min-height:40px;}
 .direction{padding:8px 10px;border:1px solid var(--rule);border-radius:var(--r-ctl);text-align:center;font-weight:700;font-size:14px;color:var(--fg);margin-top:8px;}
 
 /* 保存の合図 */
@@ -538,7 +540,7 @@ html.theme-race .hero-row .v,html.theme-race .hit .b{font-size:var(--box-size,24
         <div class="inner">
           <div class="seisan-line">
             <span>換金率</span>
-            <input class="input-field" type="number" inputmode="numeric" id="seisan-kokan" value="28" oninput="calcSeisan()">
+            <input class="input-field" type="number" inputmode="numeric" id="seisan-kokan" value="28" oninput="calcSeisan();saveSeisan()">
             <span>玉交換</span>
           </div>
           <table class="seisan-table">
@@ -554,24 +556,24 @@ html.theme-race .hero-row .v,html.theme-race .hit .b{font-size:var(--box-size,24
             <tbody>
               <tr>
                 <td>自分</td>
-                <td><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-jibun-genkin" oninput="calcSeisan()"></td>
-                <td><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-jibun-tama" oninput="calcSeisan()"></td>
-                <td><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-jibun-recover" oninput="calcSeisan()"></td>
-                <td><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-jibun-recover-cash" oninput="calcSeisan()"></td>
+                <td><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-jibun-genkin" oninput="calcSeisan();saveSeisan()"></td>
+                <td><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-jibun-tama" oninput="calcSeisan();saveSeisan()"></td>
+                <td><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-jibun-recover" oninput="calcSeisan();saveSeisan()"></td>
+                <td><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-jibun-recover-cash" oninput="calcSeisan();saveSeisan()"></td>
               </tr>
               <tr>
                 <td>相手</td>
-                <td><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-aite-genkin" oninput="calcSeisan()"></td>
-                <td><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-aite-tama" oninput="calcSeisan()"></td>
-                <td><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-aite-recover" oninput="calcSeisan()"></td>
-                <td><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-aite-recover-cash" oninput="calcSeisan()"></td>
+                <td><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-aite-genkin" oninput="calcSeisan();saveSeisan()"></td>
+                <td><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-aite-tama" oninput="calcSeisan();saveSeisan()"></td>
+                <td><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-aite-recover" oninput="calcSeisan();saveSeisan()"></td>
+                <td><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-aite-recover-cash" oninput="calcSeisan();saveSeisan()"></td>
               </tr>
             </tbody>
           </table>
           <div class="note">スロット（メダル）</div>
           <div class="seisan-line">
             <span>交換率</span>
-            <input class="input-field" type="number" inputmode="decimal" id="seisan-slot-rate" placeholder="5.6" oninput="calcSeisan()">
+            <input class="input-field" type="number" inputmode="decimal" id="seisan-slot-rate" placeholder="5.6" oninput="calcSeisan();saveSeisan()">
             <span>100円あたり枚数</span>
           </div>
           <table class="seisan-table">
@@ -587,17 +589,17 @@ html.theme-race .hero-row .v,html.theme-race .hit .b{font-size:var(--box-size,24
             <tbody>
               <tr>
                 <td>自分</td>
-                <td><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-slot-jibun-genkin" oninput="calcSeisan()"></td>
-                <td><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-slot-jibun-medal" oninput="calcSeisan()"></td>
-                <td><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-slot-jibun-recover" oninput="calcSeisan()"></td>
-                <td><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-slot-jibun-recover-cash" oninput="calcSeisan()"></td>
+                <td><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-slot-jibun-genkin" oninput="calcSeisan();saveSeisan()"></td>
+                <td><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-slot-jibun-medal" oninput="calcSeisan();saveSeisan()"></td>
+                <td><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-slot-jibun-recover" oninput="calcSeisan();saveSeisan()"></td>
+                <td><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-slot-jibun-recover-cash" oninput="calcSeisan();saveSeisan()"></td>
               </tr>
               <tr>
                 <td>相手</td>
-                <td><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-slot-aite-genkin" oninput="calcSeisan()"></td>
-                <td><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-slot-aite-medal" oninput="calcSeisan()"></td>
-                <td><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-slot-aite-recover" oninput="calcSeisan()"></td>
-                <td><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-slot-aite-recover-cash" oninput="calcSeisan()"></td>
+                <td><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-slot-aite-genkin" oninput="calcSeisan();saveSeisan()"></td>
+                <td><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-slot-aite-medal" oninput="calcSeisan();saveSeisan()"></td>
+                <td><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-slot-aite-recover" oninput="calcSeisan();saveSeisan()"></td>
+                <td><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-slot-aite-recover-cash" oninput="calcSeisan();saveSeisan()"></td>
               </tr>
             </tbody>
           </table>
@@ -611,6 +613,7 @@ html.theme-race .hero-row .v,html.theme-race .hit .b{font-size:var(--box-size,24
             </dl>
             <div class="direction" id="seisan-direction">—</div>
           </div>
+          <button type="button" class="seisan-clear" id="seisan-clear-btn" onclick="clearSeisan()">清算をクリア</button>
         </div>
       </details>
     </section>
@@ -1161,6 +1164,8 @@ window.addEventListener('DOMContentLoaded', async () => {
   // 見た目（レース／計器盤・書体）と「さらに暗く」を先に適用する
   loadTheme();
   loadNightMode();
+  // 清算計算機の入力は通信を待たずに先に戻す（保存は別キー）
+  loadSeisan();
   // キャッシュがあれば即座に表示
   const cache = localStorage.getItem('masters_cache');
   if (cache) {
@@ -1690,6 +1695,100 @@ function computeSeisan(input) {
   return out;
 }
 // ==== 清算計算 純関数（ここまで） ====
+
+// ==== 清算の保存 純関数（ここから） ====
+// 清算計算機（section-seisan）の入力欄の id。ここに並べた欄だけを保存・復元する。
+const SEISAN_FIELD_IDS = [
+  'seisan-kokan',
+  'seisan-jibun-genkin', 'seisan-jibun-tama', 'seisan-jibun-recover', 'seisan-jibun-recover-cash',
+  'seisan-aite-genkin',  'seisan-aite-tama',  'seisan-aite-recover',  'seisan-aite-recover-cash',
+  'seisan-slot-rate',
+  'seisan-slot-jibun-genkin', 'seisan-slot-jibun-medal', 'seisan-slot-jibun-recover', 'seisan-slot-jibun-recover-cash',
+  'seisan-slot-aite-genkin',  'seisan-slot-aite-medal',  'seisan-slot-aite-recover',  'seisan-slot-aite-recover-cash',
+];
+
+// 入力欄から保存する値を取り出す。getValue(id) は input.value を返す想定。
+// 空欄もそのまま持つ（あとで消した欄も「空」として復元できるようにする）。
+function collectSeisanValues(getValue) {
+  const out = {};
+  SEISAN_FIELD_IDS.forEach(id => {
+    const v = getValue(id);
+    out[id] = typeof v === 'string' ? v : '';
+  });
+  return out;
+}
+
+// 保存値を入力欄へ戻す。setValue(id, value) で書き込む。
+// 保存値に無い欄は触らない（HTMLの初期値＝換金率28を消さないため）。戻した id を返す。
+function applySeisanValues(values, setValue) {
+  const applied = [];
+  if (!values || typeof values !== 'object' || Array.isArray(values)) return applied;
+  SEISAN_FIELD_IDS.forEach(id => {
+    if (typeof values[id] !== 'string') return;
+    setValue(id, values[id]);
+    applied.push(id);
+  });
+  return applied;
+}
+
+// 全項目を空にする（クリア用）。空にした id を返す。
+function clearSeisanValues(setValue) {
+  SEISAN_FIELD_IDS.forEach(id => setValue(id, ''));
+  return SEISAN_FIELD_IDS.slice();
+}
+
+// 保存用の文字列から値を読む。壊れていれば空を返す（取り直しではなく空扱い）。
+function parseSeisanValues(raw) {
+  if (typeof raw !== 'string' || raw === '') return {};
+  try {
+    const d = JSON.parse(raw);
+    if (!d || typeof d !== 'object' || Array.isArray(d)) return {};
+    const out = {};
+    SEISAN_FIELD_IDS.forEach(id => { if (typeof d[id] === 'string') out[id] = d[id]; });
+    return out;
+  } catch(e) { return {}; }
+}
+
+// 保存用の文字列にする。保存する値が無ければ空文字（保存しない合図）。
+function serializeSeisanValues(values) {
+  const out = {};
+  SEISAN_FIELD_IDS.forEach(id => {
+    if (values && typeof values[id] === 'string' && values[id] !== '') out[id] = values[id];
+  });
+  return Object.keys(out).length ? JSON.stringify(out) : '';
+}
+// ==== 清算の保存 純関数（ここまで） ====
+
+// 清算計算機の入力：保存キー（'pachinkoLog_v5' とは別に持つ）
+const SEISAN_KEY = 'seisan_v1';
+
+// DOM から値を読み取って保存する（入力のたびに呼ぶ）
+function saveSeisan() {
+  try {
+    const values = collectSeisanValues(id => { const e = document.getElementById(id); return e ? e.value : ''; });
+    const raw = serializeSeisanValues(values);
+    if (raw) localStorage.setItem(SEISAN_KEY, raw);
+    else localStorage.removeItem(SEISAN_KEY);
+  } catch(e) { /* 保存不可でも動作は続ける */ }
+}
+
+// 保存値を DOM へ戻して計算し直す（起動時・リロード時に呼ぶ）
+function loadSeisan() {
+  let values = {};
+  try { values = parseSeisanValues(localStorage.getItem(SEISAN_KEY)); } catch(e) { values = {}; }
+  applySeisanValues(values, (id, v) => { const e = document.getElementById(id); if (e) e.value = v; });
+  calcSeisan();
+}
+
+// 「清算をクリア」：清算計算機の入力だけ消し、保存も消す（確認なし）
+function clearSeisan() {
+  try { localStorage.removeItem(SEISAN_KEY); } catch(e) {}
+  clearSeisanValues((id, v) => { const e = document.getElementById(id); if (e) e.value = v; });
+  // 交換率は空にせず、初期値（HTMLの value＝28）に戻す
+  const kokan = document.getElementById('seisan-kokan');
+  if (kokan) kokan.value = kokan.defaultValue || '';
+  calcSeisan();
+}
 
 // 清算計算機：DOMから入力を読み取り計算・描画
 function calcSeisan() {
@@ -3201,6 +3300,7 @@ function doReset() {
     showConfirm('本当にリセットしますか？', () => {
       const eventValue = document.getElementById('in-event').value;
       localStorage.removeItem('pachinkoLog_v5');
+      clearSeisan(); // 清算計算機の入力と保存も消す
       S.shop = null; S.kishu = null; S.ratio = 100; S.hits = [];
       S.rotationMode = 'simple'; S.rotSegments = [];
       S.investBallSource = null;
