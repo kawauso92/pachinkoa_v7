@@ -31,6 +31,8 @@
   --r-panel:10px;--r-ctl:8px;
 }
 /* 設定「さらに暗く」でトークンだけ差し替える */
+/* 意味の色（プラス・マイナス・注意・フォーカス）。段階の色とは切り離す */
+:root{--plus:var(--t2);--minus:var(--t0);--warn:var(--t1);--focus:var(--t3);}
 .night{--fg:#b3afa6;--fg2:#7d7a72;--fg3:#4b4944;--rule:#1b1c1f;--line:#2c2f33;--raise:#0c0d0e;--t0:#8a4740;--t1:#8f763d;--t2:#64805a;--t3:#507096;--t4:#bdb8aa;}
 
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
@@ -38,10 +40,10 @@
 html,body{background:var(--ink);color:var(--fg);}
 body{font-family:var(--font-text);font-size:14px;font-weight:500;line-height:1.5;-webkit-font-smoothing:antialiased;min-height:100vh;max-width:430px;margin:0 auto;padding:0 14px 84px;overflow-x:hidden;}
 button,input,select,textarea{font:inherit;color:inherit;}
-:focus-visible{outline:2px solid var(--t3);outline-offset:2px;}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px;}
 .num{font-family:var(--font-num);font-variant-numeric:tabular-nums;font-weight:600;}
-.plus{color:var(--t2);} .minus{color:var(--t0);}
-.pos{color:var(--t2);} .neg{color:var(--t0);}
+.plus{color:var(--plus);} .minus{color:var(--minus);}
+.pos{color:var(--plus);} .neg{color:var(--minus);}
 .app{display:flex;flex-direction:column;gap:0;padding-top:4px;}
 
 /* ヘッダー（店・機種・打ち手・台番号＋更新） */
@@ -69,7 +71,7 @@ button,input,select,textarea{font:inherit;color:inherit;}
 .field label{font-size:12px;font-weight:500;color:var(--fg2);line-height:16px;min-height:16px;display:flex;align-items:center;gap:6px;white-space:nowrap;overflow:hidden;}
 .field input,.field select,.field textarea,.input-field{width:100%;background:transparent;border:1px solid var(--line);border-radius:var(--r-ctl);padding:9px 11px;font-size:16px;font-weight:500;min-height:46px;color:var(--fg);}
 .field input.n,.input-field[type=number]{font-family:var(--font-num);font-size:21px;font-weight:600;font-variant-numeric:tabular-nums;text-align:right;}
-.field input::placeholder,.field textarea::placeholder,.input-field::placeholder{color:var(--fg3);font-weight:500;}
+.field input::placeholder,.field textarea::placeholder,.input-field::placeholder{color:var(--fg3);font-weight:500;font-family:var(--font-text);}
 .field input:focus,.field select:focus,.field textarea:focus,.input-field:focus{border-color:var(--fg);outline:none;}
 .field select{appearance:none;-webkit-appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--fg2) 50%),linear-gradient(135deg,var(--fg2) 50%,transparent 50%);background-position:calc(100% - 10px) 55%,calc(100% - 5px) 55%;background-size:5px 5px;background-repeat:no-repeat;padding-right:20px;}
 .field select option{background:var(--panel);color:var(--fg);}
@@ -91,8 +93,8 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield;}
 .note{font-size:12px;color:var(--fg2);}
 /* 既存の清算計算機の入力欄が使うクラス */
 .stock-balance-note{font-size:12px;color:var(--fg2);line-height:1.4;min-height:1.4em;}
-.stock-balance-note.warn{color:var(--t1);}
-.stock-balance-note.error{color:var(--t0);}
+.stock-balance-note.warn{color:var(--warn);}
+.stock-balance-note.error{color:var(--minus);}
 
 /* チップ・バッジ・折りたたみ */
 .chips{display:flex;gap:6px;flex-wrap:wrap;}
@@ -100,7 +102,7 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield;}
 .chip.selected,.chip.active,.chip[aria-pressed="true"]{border-color:var(--fg);color:#000;background:var(--fg);}
 .chip-select{display:flex;flex-wrap:wrap;gap:7px;}
 .badge{display:inline-flex;align-items:center;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;border:1px solid currentColor;}
-.badge.up{color:var(--t2);} .badge.dn{color:var(--t0);} .badge.neu{color:var(--fg2);} .badge.info{color:var(--fg2);}
+.badge.up{color:var(--plus);} .badge.dn{color:var(--minus);} .badge.neu{color:var(--fg2);} .badge.info{color:var(--fg2);}
 .badge-manual,.badge-auto{font-size:10px;font-weight:400;padding:0;border:0;color:var(--fg3);line-height:16px;}
 .fold{border-top:1px solid var(--rule);padding:6px 0 2px;}
 .fold summary{cursor:pointer;list-style:none;min-height:40px;}
@@ -132,6 +134,9 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield;}
 .scale span:first-child{transform:none;}
 .now-line{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:12px;color:var(--fg2);}
 .now-line .num{font-size:20px;color:var(--fg);}
+.now-line #kitai-now-ratio{font-size:13px;color:var(--fg);}
+.now-line>span:first-child{min-width:0;}
+.now-line #kpi-kitai-now{flex-shrink:0;font-size:var(--now-size,20px);}
 .legend{display:flex;gap:12px;font-size:11px;color:var(--fg3);}
 .legend i{display:inline-block;width:10px;vertical-align:middle;margin-right:4px;}
 .legend .a{border-top:2px solid var(--fg);} .legend .b{border-top:2px dotted var(--fg2);}
@@ -145,7 +150,7 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield;}
 .time .row{display:flex;align-items:center;gap:6px;min-width:0;}
 .time input[type=time]{flex:1;min-width:0;background:transparent;border:1px solid var(--line);border-radius:var(--r-ctl);padding:8px 10px;font-family:var(--font-num);font-size:21px;font-weight:600;min-height:46px;color:var(--fg);}
 .time input[type=time]:focus{border-color:var(--fg);outline:none;}
-.time .empty{color:var(--t1);font-size:13px;flex-shrink:0;}
+.time .empty{color:var(--warn);font-size:13px;flex-shrink:0;}
 .now-btn{background:none;border:1px solid var(--line);border-radius:var(--r-ctl);padding:8px 12px;font-size:13px;font-weight:600;color:var(--fg);cursor:pointer;flex-shrink:0;min-height:46px;}
 .times .dur{grid-column:1/-1;text-align:right;font-size:12px;color:var(--fg2);}
 .times .dur .num{font-size:20px;color:var(--fg);}
@@ -184,7 +189,7 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield;}
 .hit .t{font-size:13px;}
 .hit .b{font-size:20px;text-align:right;overflow-wrap:anywhere;}
 .hit .rs{grid-column:2/3;font-size:11px;color:var(--fg2);}
-.del{background:none;border:1px solid var(--rule);border-radius:var(--r-ctl);color:var(--t0);font-size:12px;padding:8px 10px;min-height:40px;cursor:pointer;}
+.del{background:none;border:1px solid var(--rule);border-radius:var(--r-ctl);color:var(--minus);font-size:12px;padding:8px 10px;min-height:40px;cursor:pointer;}
 .hit .del{grid-column:3;grid-row:2;}
 .add{width:100%;background:none;border:1px dashed var(--line);border-radius:var(--r-ctl);padding:12px;font-size:13px;color:var(--fg);cursor:pointer;min-height:44px;}
 
@@ -201,7 +206,7 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield;}
 
 /* 設定 */
 .send{width:100%;background:var(--fg);color:var(--ink);border:0;border-radius:var(--r-panel);padding:16px;font-size:16px;font-weight:700;cursor:pointer;min-height:52px;}
-.danger{width:100%;background:none;border:1px solid var(--rule);border-radius:var(--r-ctl);padding:12px;font-size:13px;color:var(--t0);cursor:pointer;min-height:44px;}
+.danger{width:100%;background:none;border:1px solid var(--rule);border-radius:var(--r-ctl);padding:12px;font-size:13px;color:var(--minus);cursor:pointer;min-height:44px;}
 .toggle{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:13px;padding:4px 0;}
 .th-row{display:grid;grid-template-columns:auto 1fr;gap:8px;align-items:center;}
 .th-row .lamp{width:28px;height:8px;border-radius:2px;}
@@ -213,7 +218,7 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield;}
 .seisan-table th{color:var(--fg2);font-weight:400;padding:4px 2px;text-align:center;}
 .seisan-table td{padding:2px 3px;color:var(--fg2);}
 .seisan-table .input-field{font-size:13px;padding:6px 4px;min-height:38px;}
-.seisan-warning{padding:8px 10px;border:1px solid var(--t1);border-radius:var(--r-ctl);color:var(--t1);font-size:12px;line-height:1.4;}
+.seisan-warning{padding:8px 10px;border:1px solid var(--warn);border-radius:var(--r-ctl);color:var(--warn);font-size:12px;line-height:1.4;}
 .seisan-result{padding:10px;border:1px solid var(--rule);border-radius:var(--r-ctl);}
 .direction{padding:8px 10px;border:1px solid var(--rule);border-radius:var(--r-ctl);text-align:center;font-weight:700;font-size:14px;color:var(--fg);margin-top:8px;}
 
@@ -244,7 +249,7 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield;}
 .btn{flex:1;padding:13px;border-radius:var(--r-ctl);font-size:14px;cursor:pointer;min-height:46px;}
 .btn.sub{background:none;border:1px solid var(--rule);color:var(--fg2);}
 .btn.primary{background:var(--fg);color:var(--ink);border:0;}
-.btn.danger{background:none;border:1px solid var(--t0);color:var(--t0);}
+.btn.danger{background:none;border:1px solid var(--minus);color:var(--minus);}
 
 /* 下部ナビ */
 .bottom-nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--rule);background:var(--ink);z-index:200;}
@@ -260,7 +265,7 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield;}
    DOM はどちらの見た目でも同じものを使う
    ============================================================ */
 /* 数字の大きさは書体ごとに調整する（Michroma は横に広いので小さめ） */
-html.theme-race.font-michroma{--font-num:'Michroma',sans-serif;--num-w:400;--num-ls:-.02em;--hero-size:38px;--box-size:16px;--kv-size:16px;--num-input:17px;}
+html.theme-race.font-michroma{--font-num:'Michroma',sans-serif;--num-w:400;--num-ls:-.02em;--hero-size:38px;--box-size:16px;--kv-size:16px;--num-input:17px;--now-size:15px;}
 html.theme-race.font-titillium{--font-num:'Titillium Web',sans-serif;--num-w:700;--num-ls:0;--hero-size:52px;--box-size:26px;--kv-size:22px;--num-input:22px;}
 html.theme-race{
   --font-text:'Zen Kaku Gothic New','Hiragino Sans','Noto Sans JP',sans-serif;
@@ -269,11 +274,13 @@ html.theme-race{
   /* 段階＝保留の色（白・青・緑・赤・金・虹） */
   --t0:#e9e9e4;--t1:#3d8bff;--t2:#2fd16d;--t3:#ff2d3c;--t4:#f5c542;
   --rainbow:linear-gradient(90deg,#ff3b3b,#ff9f1c,#ffe23d,#3ddc6b,#3dc8ff,#5a6bff,#c45cff);
-  --plus:#2fd16d;
+  /* 意味の色：レースでは見送りが白なので、マイナス・注意は専用の色にする */
+  --plus:#2fd16d;--minus:#ff4d5a;--warn:#ffb020;--focus:#3d8bff;
 }
 html.theme-meter{--font-text:'IBM Plex Sans JP','Hiragino Sans','Noto Sans JP',sans-serif;--font-num:'Saira Semi Condensed','DIN Alternate','Roboto Condensed',sans-serif;--num-w:600;--num-ls:0;--hero-size:52px;--box-size:26px;--kv-size:17px;--num-input:21px;}
 /* さらに暗く：どちらの見た目でもトークンだけ差し替える */
-html.theme-race.night{--ink:#000000;--panel:#08090a;--rule:#1b1c1f;--line:#26282c;--raise:#0b0c0d;--fg:#b9b5ac;--fg2:#6f6c66;--fg3:#45443f;--t0:#7f4540;--t1:#86703a;--t2:#5f7a52;--t3:#4a6b8a;--t4:#b8b3a5;--plus:#6f8f62;}
+html.theme-race.night{--ink:#000000;--panel:#08090a;--rule:#1b1c1f;--line:#26282c;--raise:#0b0c0d;--fg:#b9b5ac;--fg2:#6f6c66;--fg3:#45443f;
+  --t0:#8f8f8a;--t1:#2d5fae;--t2:#2a8a50;--t3:#a8303a;--t4:#a8893a;--plus:#2a8a50;--minus:#a8303a;--warn:#a87a2a;--focus:#2d5fae;}
 
 /* 期待時給（DOMは同じ。レースは枠とランプ、計器盤は2本針） */
 .meter{display:grid;gap:8px;padding:4px 0 10px;}
@@ -301,6 +308,9 @@ html.theme-race.night{--ink:#000000;--panel:#08090a;--rule:#1b1c1f;--line:#26282
 .scale span:first-child{transform:none;}
 .now-line{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:12px;color:var(--fg2);}
 .now-line .num{font-size:20px;color:var(--fg);}
+.now-line #kitai-now-ratio{font-size:13px;color:var(--fg);}
+.now-line>span:first-child{min-width:0;}
+.now-line #kpi-kitai-now{flex-shrink:0;font-size:var(--now-size,20px);}
 .legend{display:flex;gap:12px;font-size:11px;color:var(--fg3);}
 .legend i{display:inline-block;width:10px;vertical-align:middle;margin-right:4px;}
 .legend .a{border-top:2px solid var(--fg);} .legend .b{border-top:2px dotted var(--fg2);}
@@ -322,7 +332,7 @@ html.theme-race .stage.rainbow::after{content:'';position:absolute;inset:-6px;bo
 .lamp.peka{animation:peka .45s ease-out;}
 /* 見た目ごとに出す部品を切り替える（DOMは共通） */
 html.theme-meter .lamp,html.theme-meter .pin,html.theme-meter .fuel{display:none!important;}
-html.theme-race .needle,html.theme-race .scale,html.theme-race .legend{display:none!important;}
+html.theme-race .needle,html.theme-race .scale,html.theme-race .legend,html.theme-race #kpi-kitai-sub{display:none!important;}
 html.theme-race .band{box-shadow:none;opacity:.22;}
 html.theme-race .band.lit{opacity:1;}
 
@@ -342,7 +352,7 @@ html.theme-race .box.delta{border-color:var(--plus);}
 .fuel{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;font-size:11px;color:var(--fg2);}
 .fuel .bar{height:8px;background:var(--rule);border-radius:2px;overflow:hidden;}
 .fuel .bar i{display:block;height:100%;width:0;background:var(--fg2);transition:width .3s;}
-.fuel b{font-family:var(--font-num);font-size:16px;color:var(--fg);}
+.fuel b{font-family:var(--font-num);font-size:13px;color:var(--fg);white-space:nowrap;}
 
 /* レースでは板・入力欄に細い枠をつけ、数字を書体に合わせる */
 html.theme-race .group{border:1px solid var(--rule);border-radius:8px;padding:12px;background:var(--panel);}
@@ -515,7 +525,7 @@ html.theme-race .hero-row .v,html.theme-race .hit .b{font-size:var(--box-size,24
         <div class="field"><label for="in-recover">回収玉数</label><input class="n" type="number" inputmode="numeric" placeholder="0" id="in-recover" oninput="recalc();save()"></div>
         <div class="field"><label for="in-stock-card">貯玉カード</label><input type="text" id="in-stock-card" list="stock-card-options" maxlength="80" placeholder="打ち手のカード" oninput="onStockCardInput()"><datalist id="stock-card-options"></datalist><div class="stock-balance-note" id="stock-balance-note"></div></div>
         <div class="field"><label for="in-stock-start">開始時貯玉</label><input class="n" type="number" inputmode="numeric" placeholder="0" id="in-stock-start" oninput="onStockInput(true)"></div>
-        <div class="field"><label for="in-stock-end">投資終了時貯玉</label><input class="n" type="number" inputmode="numeric" placeholder="0" id="in-stock-end" oninput="onStockInput(false)"><div id="stock-clamp-note" style="display:none;font-size:11px;color:var(--t1);line-height:1.4;">投資終了時貯玉が開始時貯玉より多いため0にしました</div></div>
+        <div class="field"><label for="in-stock-end">投資終了時貯玉</label><input class="n" type="number" inputmode="numeric" placeholder="0" id="in-stock-end" oninput="onStockInput(false)"><div id="stock-clamp-note" style="display:none;font-size:11px;color:var(--warn);line-height:1.4;">投資終了時貯玉が開始時貯玉より多いため0にしました</div></div>
         <div class="field"><label for="in-watashita">渡した玉</label><input class="n" type="number" inputmode="numeric" placeholder="0" id="in-watashita" oninput="recalc();save()"></div>
         <div class="field"><label for="in-moratta">もらった玉</label><input class="n" type="number" inputmode="numeric" placeholder="0" id="in-moratta" oninput="recalc();save()"></div>
       </div>
@@ -2981,7 +2991,7 @@ function renderKitaiMeter(full, now, mochiPct) {
     if (nowRatio) nowRatio.textContent = mochiPct + '%';
     if (nowNum) {
       const ns = kitaiTierStyle(kitaiTier(now, t));
-      nowNum.textContent = fmt(now);
+      nowNum.textContent = fmtN(Math.round(now));
       nowNum.style.color = isRace ? ns.color : ns.number;
     }
   }
