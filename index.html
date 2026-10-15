@@ -74,6 +74,10 @@ button,input,select,textarea{font:inherit;color:inherit;}
 .field select{appearance:none;-webkit-appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--fg2) 50%),linear-gradient(135deg,var(--fg2) 50%,transparent 50%);background-position:calc(100% - 10px) 55%,calc(100% - 5px) 55%;background-size:5px 5px;background-repeat:no-repeat;padding-right:20px;}
 .field select option{background:var(--panel);color:var(--fg);}
 .field textarea{resize:none;line-height:1.6;overflow:hidden;font-size:14px;}
+/* iPhoneの日付・時刻欄は独自の最小幅で広がり、隣の欄に重なるので標準の見た目を外す */
+input[type=date],input[type=time]{-webkit-appearance:none;appearance:none;min-width:0;max-width:100%;display:block;text-align:left;}
+input[type=date]::-webkit-date-and-time-value,input[type=time]::-webkit-date-and-time-value{text-align:left;margin:0;}
+input[type=date]{font-family:var(--font-num);font-size:19px;font-weight:600;}
 /* 数字欄のスピナー（上下の矢印）は使わないので消す */
 input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0;}
 input[type=number]{-moz-appearance:textfield;appearance:textfield;}
