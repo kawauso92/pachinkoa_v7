@@ -50,6 +50,15 @@ button,input,select,textarea{font:inherit;color:inherit;}
 .session{position:sticky;top:0;z-index:50;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 2px;font-size:12px;color:var(--fg2);background:var(--ink);border-bottom:1px solid var(--rule);}
 .session .sub{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .session .sub b{color:var(--fg);font-weight:600;}
+/* ヘッダーの操作（戻す・更新）。1行に収める */
+.session-actions{display:flex;align-items:center;gap:4px;flex-shrink:0;}
+.ghost[aria-disabled="true"]{color:var(--fg3);opacity:.45;cursor:default;}
+#undoIndicator{top:92px;}
+/* 開始時貯玉の「台帳から」 */
+.stock-row{display:flex;gap:6px;align-items:center;}
+.stock-row input{flex:1;min-width:0;width:auto;}
+.stock-from-ledger{flex-shrink:0;background:none;border:1px solid var(--line);border-radius:var(--r-ctl);color:var(--fg2);font-size:12px;padding:0 10px;min-height:40px;cursor:pointer;white-space:nowrap;}
+.stock-ledger-msg{min-height:1.4em;}
 .ghost{background:none;border:0;border-radius:var(--r-ctl);padding:9px 4px 9px 12px;font-size:12px;color:var(--fg2);cursor:pointer;flex-shrink:0;min-height:40px;}
 
 /* タブ・ガード */
@@ -396,10 +405,14 @@ html.theme-race .hero-row .v,html.theme-race .hit .b{font-size:var(--box-size,24
 <body>
 <div class="app">
 <div class="save-indicator" id="saveIndicator" aria-live="polite">保存</div>
+<div class="save-indicator" id="undoIndicator" aria-live="polite">1つ前に戻しました</div>
 
 <div class="session">
   <div class="sub" id="header-info">店未選択　機種未選択　自分</div>
-  <button class="ghost" type="button" id="refreshBtn">更新</button>
+  <div class="session-actions">
+    <button class="ghost" type="button" id="undoBtn" aria-disabled="true" onclick="undoOnce()">戻す</button>
+    <button class="ghost" type="button" id="refreshBtn">更新</button>
+  </div>
 </div>
 
 <!-- ===== メイン ===== -->
@@ -526,7 +539,14 @@ html.theme-race .hero-row .v,html.theme-race .hit .b{font-size:var(--box-size,24
         <div class="field"><label for="in-invest-ball">投資玉数 <span id="invest-ball-badge" class="badge-manual">入力</span></label><input class="n" type="number" inputmode="numeric" placeholder="0" id="in-invest-ball" oninput="onInvestBallInput()"></div>
         <div class="field"><label for="in-recover">回収玉数</label><input class="n" type="number" inputmode="numeric" placeholder="0" id="in-recover" oninput="recalc();save()"></div>
         <div class="field"><label for="in-stock-card">貯玉カード</label><input type="text" id="in-stock-card" list="stock-card-options" maxlength="80" placeholder="打ち手のカード" oninput="onStockCardInput()"><datalist id="stock-card-options"></datalist><div class="stock-balance-note" id="stock-balance-note"></div></div>
-        <div class="field"><label for="in-stock-start">開始時貯玉</label><input class="n" type="number" inputmode="numeric" placeholder="0" id="in-stock-start" oninput="onStockInput(true)"></div>
+        <div class="field">
+          <label for="in-stock-start">開始時貯玉</label>
+          <div class="stock-row">
+            <input class="n" type="number" inputmode="numeric" placeholder="0" id="in-stock-start" oninput="onStockInput(true)">
+            <button type="button" class="stock-from-ledger" id="stock-from-ledger-btn" onclick="fillStockFromLedger()">台帳から</button>
+          </div>
+          <div class="note stock-ledger-msg" id="stock-ledger-msg"></div>
+        </div>
         <div class="field"><label for="in-stock-end">投資終了時貯玉</label><input class="n" type="number" inputmode="numeric" placeholder="0" id="in-stock-end" oninput="onStockInput(false)"><div id="stock-clamp-note" style="display:none;font-size:11px;color:var(--warn);line-height:1.4;">投資終了時貯玉が開始時貯玉より多いため0にしました</div></div>
         <div class="field"><label for="in-watashita">渡した玉</label><input class="n" type="number" inputmode="numeric" placeholder="0" id="in-watashita" oninput="recalc();save()"></div>
         <div class="field"><label for="in-moratta">もらった玉</label><input class="n" type="number" inputmode="numeric" placeholder="0" id="in-moratta" oninput="recalc();save()"></div>
@@ -1015,6 +1035,16 @@ function isInvestBallAuto(source, startVal, endVal) {
   return source === 'stock' && calcInvestBallFromStock(startVal, endVal) !== null;
 }
 
+// ==== 台帳の残高 純関数（ここから） ====
+// 台帳（stockBalancesCache）から「店 × カード」の残高の行を探す。
+// 見つからなければ null。店・カードが空、台帳が無いときも null。
+function findStockBalance(balances, shopName, card) {
+  if (!Array.isArray(balances) || !shopName || !card) return null;
+  const found = balances.find(item => item && item.shop === shopName && item.card === card);
+  return found || null;
+}
+// ==== 台帳の残高 純関数（ここまで） ====
+
 // 投資玉数のバッジ表示を更新（自動計算／直接入力の区別）
 function updateInvestBallBadge() {
   const b = document.getElementById('invest-ball-badge');
@@ -1160,6 +1190,49 @@ function onInvestBallInput() {
   save();
 }
 
+// =============================================
+// 「台帳から」：選んでいる店×カードの台帳の残高を開始時貯玉に入れる
+// =============================================
+function showStockMessage(text) {
+  const el = document.getElementById('stock-ledger-msg');
+  if (!el) return;
+  el.textContent = text || '';
+  if (showStockMessage._t) clearTimeout(showStockMessage._t);
+  if (text) showStockMessage._t = setTimeout(() => { el.textContent = ''; }, 4000);
+}
+
+// 台帳の残高を開始時貯玉へ入れる（自動入力の扱いにする）
+function applyLedgerBalanceToStock() {
+  const cardEl = document.getElementById('in-stock-card');
+  const card = cardEl ? cardEl.value.trim() : '';
+  const found = findStockBalance(stockBalancesCache, S.shop ? S.shop.name : '', card);
+  if (!found) { showStockMessage('この店・カードの台帳の残高がありません'); return; }
+  const balance = Number(found.balance);
+  const input = document.getElementById('in-stock-start');
+  if (!input) return;
+  beginUndo(); // 変更前の状態を控える
+  input.value = String(balance);
+  S.stockStartAuto = true;
+  S.stockAutoValue = balance;
+  onStockInput(false); // 投資玉数の反映・再計算・保存まで行う
+  save();
+  commitUndo();
+  showStockMessage('台帳の残高 ' + balance.toLocaleString('ja-JP') + '玉を入れました');
+}
+
+function fillStockFromLedger() {
+  const cardEl = document.getElementById('in-stock-card');
+  const card = cardEl ? cardEl.value.trim() : '';
+  if (!S.shop || !card) { showStockMessage('店と貯玉カードを選んでください'); return; }
+  if (!stockBalancesCache) {
+    // 台帳が手元に無ければ取り直してから入れる
+    showStockMessage('台帳を取り直しています…');
+    loadStockBalances(true).then(applyLedgerBalanceToStock);
+    return;
+  }
+  applyLedgerBalanceToStock();
+}
+
 window.addEventListener('DOMContentLoaded', async () => {
   // 見た目（レース／計器盤・書体）と「さらに暗く」を先に適用する
   loadTheme();
@@ -1183,6 +1256,8 @@ window.addEventListener('DOMContentLoaded', async () => {
       updateGuard();
       recalc();
       loadStockBalances();
+      save();     // 元に戻すの基準になる下書きを用意する
+      initUndo(); // 元に戻すの履歴を読む
     } catch(e) {}
     // バックグラウンドで最新取得（店・機種・打ち手の選択状態を復元）
     loadMasters().then(() => {
@@ -1226,6 +1301,8 @@ window.addEventListener('DOMContentLoaded', async () => {
     updateGuard();
     recalc();
     loadStockBalances();
+    save();     // 元に戻すの基準になる下書きを用意する
+    initUndo(); // 元に戻すの履歴を読む
   }
 });
 
@@ -1334,6 +1411,11 @@ function bindEvents() {
   document.getElementById('send-btn').onclick  = doSend;
   document.getElementById('reset-btn').onclick = doReset;
   document.getElementById('refreshBtn').onclick = () => location.reload();
+
+  // 元に戻す：入力欄の変化を拾って履歴に積む（input は区切りの前を控え、change/blur で確定）
+  document.addEventListener('input', onDraftInput, true);
+  document.addEventListener('change', onDraftChange, false);
+  document.addEventListener('focusout', onDraftChange, false);
 }
 
 // =============================================
@@ -1342,9 +1424,11 @@ function bindEvents() {
 function fillNowTime(inputId) {
   const el = document.getElementById(inputId);
   if (!el) return;
+  beginUndo(); // 変更前の状態を控える
   const now = new Date();
   el.value = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
   onTimeInput(el);
+  commitUndo();
 }
 
 // =============================================
@@ -1496,6 +1580,7 @@ function buildShops() {
   });
 }
 function onShopChange() {
+  beginUndo(); // 変更前の状態を控える
   const name = document.getElementById('in-shop').value;
   S.shop = SHOPS.find(s=>s.name===name) || null;
   document.getElementById('disp-kankin').textContent = S.shop ? S.shop.kokan+'玉交換' : '—';
@@ -1506,6 +1591,7 @@ function onShopChange() {
   updateGuard();
   recalc();
   save();
+  commitUndo();
 }
 
 // =============================================
@@ -1538,6 +1624,7 @@ function buildKishuSelect() {
 }
 
 function onMakerFilterChange() {
+  beginUndo(); // 変更前の状態を控える（機種の絞り込み。保存内容が変わるのは機種を選んだとき）
   // メーカー切替 → 機種リスト再構築 + 機種選択リセット
   const makerSel   = document.getElementById('in-maker-filter');
   const makerFilter = makerSel ? makerSel.value : '';
@@ -1558,9 +1645,11 @@ function onMakerFilterChange() {
   updateTrialMode();
   renderSpecRounds();
   recalc();
+  commitUndo();
 }
 
 function onKishuChange() {
+  beginUndo(); // 変更前の状態を控える
   const name = document.getElementById('in-kishu').value;
   S.kishu = KISHU.find(k=>k.name===name) || null;
   updateHeader();
@@ -1569,6 +1658,7 @@ function onKishuChange() {
   renderSpecRounds();
   recalc();
   save();
+  commitUndo();
 }
 
 // =============================================
@@ -1598,10 +1688,12 @@ function updateNoriuchiMode() {
 }
 
 function toggleNoriuchi() {
+  beginUndo(); // 変更前の状態を控える
   S.noriuchi = !S.noriuchi;
   updateNoriuchiMode();
   recalc();
   save();
+  commitUndo();
   if (!S.noriuchi) triggerRuikeiSync();
 }
 
@@ -1759,6 +1851,62 @@ function serializeSeisanValues(values) {
 }
 // ==== 清算の保存 純関数（ここまで） ====
 
+// ==== 下書きの履歴 純関数（ここから） ====
+// 元に戻す用の履歴。下書き（'pachinkoLog_v5' の中身＋清算の値）を1つの値にまとめて積む。
+const UNDO_MAX = 30;
+
+// JSON文字列を読む。壊れていれば null。
+function parseJsonOrNull(raw) {
+  if (typeof raw !== 'string' || raw === '') return null;
+  try { return JSON.parse(raw); } catch(e) { return null; }
+}
+
+// 下書きの状態を1つの値にまとめる（raw は localStorage の文字列）
+function buildDraftSnapshot(pachinkoRaw, seisanRaw) {
+  return { pachinko: parseJsonOrNull(pachinkoRaw), seisan: parseJsonOrNull(seisanRaw) };
+}
+
+// 比較用の文字列（同じ下書きかどうかの判定に使う）
+function snapshotKey(snapshot) { return JSON.stringify(snapshot); }
+
+// 同じ下書きかどうか
+function sameDraftSnapshot(a, b) { return snapshotKey(a) === snapshotKey(b); }
+
+// 履歴に積む。直前と同じ内容なら積まない。max 件を超えたら古いものから捨てる。
+// 元の配列は変えない（新しい配列を返す）。
+function pushUndoHistory(history, snapshot, max) {
+  const list = Array.isArray(history) ? history.slice() : [];
+  const limit = Number.isFinite(max) && max > 0 ? max : UNDO_MAX;
+  const last = list[list.length - 1];
+  if (last !== undefined && sameDraftSnapshot(last, snapshot)) return list;
+  list.push(snapshot);
+  while (list.length > limit) list.shift();
+  return list;
+}
+
+// 履歴から1つ取り出す（最後の1件を取り除いて返す）。空なら snapshot は null。
+function popUndoHistory(history) {
+  const list = Array.isArray(history) ? history.slice() : [];
+  if (list.length === 0) return { history: list, snapshot: null };
+  const snapshot = list.pop();
+  return { history: list, snapshot };
+}
+
+// 保存用の文字列から履歴を読む。壊れていれば空。オブジェクト以外の要素は捨てる。
+function parseUndoHistory(raw) {
+  const parsed = parseJsonOrNull(raw);
+  if (!Array.isArray(parsed)) return [];
+  const list = parsed.filter(item => item && typeof item === 'object' && !Array.isArray(item));
+  return list.length > UNDO_MAX ? list.slice(list.length - UNDO_MAX) : list;
+}
+
+// 履歴を保存用の文字列にする
+function serializeUndoHistory(history) {
+  const list = Array.isArray(history) ? history.slice(-UNDO_MAX) : [];
+  return list.length ? JSON.stringify(list) : '';
+}
+// ==== 下書きの履歴 純関数（ここまで） ====
+
 // 清算計算機の入力：保存キー（'pachinkoLog_v5' とは別に持つ）
 const SEISAN_KEY = 'seisan_v1';
 
@@ -1788,6 +1936,150 @@ function clearSeisan() {
   const kokan = document.getElementById('seisan-kokan');
   if (kokan) kokan.value = kokan.defaultValue || '';
   calcSeisan();
+}
+
+// =============================================
+// 元に戻す（下書きの履歴）
+// 変更の前に beginUndo() で「変更前の状態」を控え、区切りで commitUndo() して1件積む。
+// 区切り＝欄から離れたとき（change/blur）か、最後の入力から1.5秒後。
+// =============================================
+const UNDO_KEY = 'draft_undo_v1';
+const UNDO_DELAY = 1500; // 入力が続く間はまとめる（ミリ秒）
+let undoHistory = [];
+let undoPending = null; // 入力中の区切りの「変更前の状態」（snapshotKey の文字列）
+let undoTimer = null;
+
+// いまの下書き（localStorage の内容）を1つの値にする
+function currentDraftSnapshot() {
+  let pachinkoRaw = null, seisanRaw = null;
+  try { pachinkoRaw = localStorage.getItem('pachinkoLog_v5'); } catch(e) {}
+  try { seisanRaw = localStorage.getItem(SEISAN_KEY); } catch(e) {}
+  return buildDraftSnapshot(pachinkoRaw, seisanRaw);
+}
+
+// 起動時に履歴を読む
+function initUndo() {
+  try { undoHistory = parseUndoHistory(localStorage.getItem(UNDO_KEY)); } catch(e) { undoHistory = []; }
+  undoPending = null;
+  if (undoTimer) { clearTimeout(undoTimer); undoTimer = null; }
+  updateUndoButton();
+}
+
+// 変更の直前に呼ぶ。区切りの「変更前の状態」を1回だけ控える。
+// 入力イベントは保存(save)より先に来るので、この時点の localStorage は変更前になる。
+function beginUndo() {
+  if (undoPending === null) undoPending = snapshotKey(currentDraftSnapshot());
+  if (undoTimer) clearTimeout(undoTimer);
+  undoTimer = setTimeout(commitUndo, UNDO_DELAY);
+}
+
+// 区切りを確定する：変更前の状態を履歴に積む（同じなら積まない）
+function commitUndo() {
+  if (undoTimer) { clearTimeout(undoTimer); undoTimer = null; }
+  const before = undoPending;
+  undoPending = null;
+  if (before === null) return;
+  const now = snapshotKey(currentDraftSnapshot());
+  if (now === before) return;
+  undoHistory = pushUndoHistory(undoHistory, JSON.parse(before), UNDO_MAX);
+  saveUndoHistory();
+  updateUndoButton();
+}
+
+function saveUndoHistory() {
+  try {
+    const raw = serializeUndoHistory(undoHistory);
+    if (raw) localStorage.setItem(UNDO_KEY, raw);
+    else localStorage.removeItem(UNDO_KEY);
+  } catch(e) {}
+}
+
+function clearUndoHistory() {
+  undoHistory = [];
+  undoPending = null;
+  if (undoTimer) { clearTimeout(undoTimer); undoTimer = null; }
+  try { localStorage.removeItem(UNDO_KEY); } catch(e) {}
+  updateUndoButton();
+}
+
+function updateUndoButton() {
+  const btn = document.getElementById('undoBtn');
+  if (!btn) return;
+  btn.setAttribute('aria-disabled', undoHistory.length === 0 ? 'true' : 'false');
+}
+
+// 保存データ（下書き）を画面へ当てる。loadData と元に戻すの両方から使う。
+function restoreDraftSnapshot(snapshot) {
+  if (!snapshot || typeof snapshot !== 'object') return;
+  const d = snapshot.pachinko;
+  if (d && typeof d === 'object') {
+    try { localStorage.setItem('pachinkoLog_v5', JSON.stringify(d)); } catch(e) {}
+    // 「無い」状態にも戻せるように、店・機種は先に空にする
+    if (!d.shop) {
+      S.shop = null;
+      const shopEl = document.getElementById('in-shop'); if (shopEl) shopEl.value = '';
+      const kankinEl = document.getElementById('disp-kankin'); if (kankinEl) kankinEl.textContent = '—';
+    }
+    if (!d.kishu) {
+      S.kishu = null;
+      const kishuEl = document.getElementById('in-kishu'); if (kishuEl) kishuEl.value = '';
+    }
+    applyDataToScreen(d);
+  }
+  // 清算は loadSeisan と同じ方法で戻す（保存が無い状態なら欄を空に戻す）
+  try {
+    if (snapshot.seisan && typeof snapshot.seisan === 'object') {
+      localStorage.setItem(SEISAN_KEY, JSON.stringify(snapshot.seisan));
+      loadSeisan();
+    } else {
+      clearSeisan();
+    }
+  } catch(e) {}
+  recalc();
+  calcSeisan();
+  save();
+  saveSeisan();
+  renderHitList();
+  renderRotSegments();
+  updateHeader();
+  updateNoriuchiMode();
+  updateGuard();
+}
+
+// 「戻す」：1つ前の状態に戻す
+function undoOnce() {
+  const btn = document.getElementById('undoBtn');
+  if (btn && btn.getAttribute('aria-disabled') === 'true') return;
+  // 入力中なら先に区切る（直前の状態が履歴に入る）
+  if (undoPending !== null) commitUndo();
+  const popped = popUndoHistory(undoHistory);
+  if (!popped.snapshot) { updateUndoButton(); return; }
+  undoHistory = popped.history;
+  saveUndoHistory();
+  restoreDraftSnapshot(popped.snapshot);
+  updateUndoButton();
+  showToast('1つ前に戻しました');
+}
+
+function showToast(text) {
+  const el = document.getElementById('undoIndicator');
+  if (!el) return;
+  el.textContent = text;
+  el.classList.add('show');
+  if (showToast._t) clearTimeout(showToast._t);
+  showToast._t = setTimeout(() => el.classList.remove('show'), 1600);
+}
+
+// 入力欄・セレクトの変化を拾って履歴に積む（document に委譲）
+function onDraftInput(e) {
+  const t = e.target;
+  if (!t || !t.tagName) return;
+  if (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT') beginUndo();
+}
+function onDraftChange(e) {
+  const t = e.target;
+  if (!t || !t.tagName) return;
+  if (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT') commitUndo();
 }
 
 // 清算計算機：DOMから入力を読み取り計算・描画
@@ -1870,6 +2162,7 @@ function buildUchiChips() {
     c.className = 'chip' + (i === 0 ? ' selected' : '');
     c.textContent = name;
     c.onclick = () => {
+      beginUndo(); // 変更前の状態を控える（打ち手の変更は1回で区切る）
       wrap.querySelectorAll('.chip').forEach(x=>x.classList.remove('selected'));
       c.classList.add('selected');
       setDefaultStockCard(false);
@@ -1877,6 +2170,7 @@ function buildUchiChips() {
       recalc();
       triggerRuikeiSync();
       updateNoriuchiMode();
+      commitUndo();
     };
     wrap.appendChild(c);
   });
@@ -1963,11 +2257,13 @@ function confirmHit() {
   if (rounds.length === 0) { showAlert('ラウンドを選択してください'); return; }
   // 入力が揃ったら未入力警告を解除する（確定後に古い警告を出さない）
   hideDialog();
+  beginUndo(); // 変更前の状態を控える（当たり追加は1回で区切る）
   S.hits.push({ balls, rounds });
   renderHitList();
   closeModal();
   recalc();
   save();
+  commitUndo();
 }
 
 // =============================================
@@ -2009,10 +2305,12 @@ function renderHitList() {
     (function(idx) {
       delBtn.onclick = function() {
         showConfirm('この当たり記録を削除しますか？', () => {
+          beginUndo(); // 変更前の状態を控える（削除は1回で区切る）
           S.hits.splice(idx, 1);
           renderHitList();
           recalc();
           save();
+          commitUndo();
         });
       };
     })(i);
@@ -2109,10 +2407,12 @@ function updateRotationModeUI() {
 }
 
 function setRotationMode(mode) {
+  beginUndo(); // 変更前の状態を控える
   S.rotationMode = mode === 'segments' ? 'segments' : 'simple';
   updateRotationModeUI();
   recalc();
   save();
+  commitUndo();
 }
 
 function renderRotSegments() {
@@ -2159,17 +2459,21 @@ function updateRotSegmentTotals() {
 }
 
 function addRotSegment() {
+  beginUndo(); // 変更前の状態を控える
   S.rotSegments.push({left: '', right: ''});
   renderRotSegments();
   recalc();
   save();
+  commitUndo();
 }
 
 function removeRotSegment(index) {
+  beginUndo(); // 変更前の状態を控える
   S.rotSegments.splice(index, 1);
   renderRotSegments();
   recalc();
   save();
+  commitUndo();
 }
 
 function onSegmentInput(index, side, value) {
@@ -3199,11 +3503,10 @@ function save() {
   } catch(e) {}
 }
 
-function loadData() {
+// 保存データ（下書き）を画面へ当てる。loadData と元に戻すの両方から使う。
+function applyDataToScreen(d) {
   try {
-    const raw = localStorage.getItem('pachinkoLog_v5');
-    if (!raw) return;
-    const d = JSON.parse(raw);
+    if (!d || typeof d !== 'object') return;
     const noriState = normalizeNoriDraft(d);
     S.noriuchi = noriState.noriuchi;
     S.stockCardManual = d.stockCardManual === true;
@@ -3264,6 +3567,15 @@ function loadData() {
   } catch(e) {}
 }
 
+// 保存データを読んで画面へ当てる（起動時）
+function loadData() {
+  try {
+    const raw = localStorage.getItem('pachinkoLog_v5');
+    if (!raw) return;
+    applyDataToScreen(JSON.parse(raw));
+  } catch(e) {}
+}
+
 // =============================================
 // 送信後リロード（2台目引き継ぎ対応）
 // =============================================
@@ -3289,6 +3601,7 @@ function afterSendReload() {
   } catch(e) {
     localStorage.removeItem('pachinkoLog_v5');
   }
+  clearUndoHistory(); // 送信前に戻して二重送信するのを防ぐ
   location.reload();
 }
 
@@ -3301,6 +3614,7 @@ function doReset() {
       const eventValue = document.getElementById('in-event').value;
       localStorage.removeItem('pachinkoLog_v5');
       clearSeisan(); // 清算計算機の入力と保存も消す
+      clearUndoHistory(); // 元に戻すの履歴も消す
       S.shop = null; S.kishu = null; S.ratio = 100; S.hits = [];
       S.rotationMode = 'simple'; S.rotSegments = [];
       S.investBallSource = null;
