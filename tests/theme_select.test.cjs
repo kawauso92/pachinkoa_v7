@@ -23,19 +23,19 @@ assert.equal(parseThemeStyle('METER'), 'race', '大文字や別名は受け付�
 // --- 書体の選択（初期は Michroma。不正・未設定は Michroma） ---
 assert.equal(parseThemeFont('michroma'), 'michroma');
 assert.equal(parseThemeFont('titillium'), 'titillium');
-assert.equal(parseThemeFont(undefined), 'michroma');
-assert.equal(parseThemeFont(null), 'michroma');
-assert.equal(parseThemeFont(''), 'michroma');
-assert.equal(parseThemeFont('saira'), 'michroma');
+assert.equal(parseThemeFont(undefined), 'titillium');
+assert.equal(parseThemeFont(null), 'titillium');
+assert.equal(parseThemeFont(''), 'titillium');
+assert.equal(parseThemeFont('saira'), 'titillium');
 
 // --- <html> に付けるクラス ---
 assert.deepEqual(themeClasses('race', 'michroma'), ['theme-race', 'font-michroma']);
 assert.deepEqual(themeClasses('meter', 'titillium'), ['theme-meter', 'font-titillium']);
-assert.deepEqual(themeClasses(undefined, undefined), ['theme-race', 'font-michroma']);
-assert.deepEqual(themeClasses('meter', undefined), ['theme-meter', 'font-michroma']);
+assert.deepEqual(themeClasses(undefined, undefined), ['theme-race', 'font-titillium']);
+assert.deepEqual(themeClasses('meter', undefined), ['theme-meter', 'font-titillium']);
 
 // --- 画面の初期クラスがレース・Michroma になっている ---
-assert.ok(/<html[^>]*class="theme-race font-michroma"/.test(html), 'html の初期クラス');
+assert.ok(/<html[^>]*class="theme-race font-titillium"/.test(html), 'html の初期クラス');
 
 // --- 設定に「見た目」「書体」「虹」の行がある ---
 assert.ok(html.includes('id="theme-seg"'));

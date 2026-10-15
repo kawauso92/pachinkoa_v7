@@ -1,5 +1,5 @@
 ﻿<!DOCTYPE html>
-<html lang="ja" class="theme-race font-michroma">
+<html lang="ja" class="theme-race font-titillium">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
@@ -739,12 +739,12 @@ html.theme-race .hero-row .v,html.theme-race .hit .b{font-size:var(--box-size,24
     <h2>画面</h2>
     <div class="rows">
       <div class="row"><span class="row-label">見た目</span><span class="row-ctl"><span class="seg" id="theme-seg">
-        <button type="button" data-theme="race" aria-pressed="true">レース</button>
-        <button type="button" data-theme="meter" aria-pressed="false">計器盤</button>
+        <button type="button" data-theme="race" aria-pressed="true">1 レース</button>
+        <button type="button" data-theme="meter" aria-pressed="false">2 計器盤</button>
       </span></span></div>
       <div class="row"><span class="row-label">書体</span><span class="row-ctl"><span class="seg" id="font-seg">
-        <button type="button" data-font="michroma" aria-pressed="true">Michroma</button>
-        <button type="button" data-font="titillium" aria-pressed="false">Titillium</button>
+        <button type="button" data-font="titillium" aria-pressed="true">Titillium</button>
+        <button type="button" data-font="michroma" aria-pressed="false">Michroma</button>
       </span></span></div>
       <div class="row"><span class="row-label">さらに暗く</span><span class="row-ctl"><button type="button" class="switch" id="night-toggle" aria-pressed="false" aria-label="さらに暗く"></button></span></div>
     </div>
@@ -1402,7 +1402,7 @@ function saveTheme() {
 function setThemeStyle(style) { applyTheme(style, themeFont); saveTheme(); recalc(); }
 function setThemeFont(font)   { applyTheme(themeStyle, font); saveTheme(); recalc(); }
 function loadTheme() {
-  let style = 'race', font = 'michroma';
+  let style = 'race', font = 'titillium';
   try {
     style = parseThemeStyle(localStorage.getItem(THEME_KEY));
     font  = parseThemeFont(localStorage.getItem(FONT_KEY));
@@ -2848,7 +2848,7 @@ function kitaiTierStyle(tier) {
 
 // 見た目の選択（保存値・入力から決める。不正・未設定は既定のレース・Michroma）
 function parseThemeStyle(v) { return v === 'meter' ? 'meter' : 'race'; }
-function parseThemeFont(v) { return v === 'titillium' ? 'titillium' : 'michroma'; }
+function parseThemeFont(v) { return v === 'michroma' ? 'michroma' : 'titillium'; } // 初期は Titillium
 // <html> に付けるクラス名
 function themeClasses(style, font) {
   return ['theme-' + parseThemeStyle(style), 'font-' + parseThemeFont(font)];
