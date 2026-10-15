@@ -1,12 +1,12 @@
 ﻿<!DOCTYPE html>
-<html lang="ja">
+<html lang="ja" class="theme-race font-michroma">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>パチンコ記録</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+JP:wght@400;500;600;700&family=Saira+Semi+Condensed:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+JP:wght@400;500;600;700&family=Saira+Semi+Condensed:wght@500;600;700&family=Michroma&family=Titillium+Web:wght@600;700&family=Zen+Kaku+Gothic+New:wght@500;700&family=Potta+One&display=swap">
 <style>
 /* 構成: 黒1色の地に、罫線と見出しで区切る。上＝読む計器、下＝親指で触る入力。
    目立ちにくさは画面全体の光の量で決める（有機ELで発光しない黒）。文字は読める明るさにする。
@@ -253,7 +253,132 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield;}
 .nav-item.active{color:var(--fg);font-weight:600;}
 .nav-item svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.5;}
 
-@media (prefers-reduced-motion:reduce){*{transition:none!important;}}
+/* ============================================================
+   見た目の切り替え（<html> のクラスで色・書体・大きさを差し替える）
+   theme-race：レースの計器（保留の色・Michroma／Titillium）
+   theme-meter：消灯した計器盤（今までの落ち着いた色・IBM Plex Sans JP）
+   DOM はどちらの見た目でも同じものを使う
+   ============================================================ */
+/* 数字の大きさは書体ごとに調整する（Michroma は横に広いので小さめ） */
+html.theme-race.font-michroma{--font-num:'Michroma',sans-serif;--num-w:400;--num-ls:-.02em;--hero-size:38px;--box-size:16px;--kv-size:16px;--num-input:17px;}
+html.theme-race.font-titillium{--font-num:'Titillium Web',sans-serif;--num-w:700;--num-ls:0;--hero-size:52px;--box-size:26px;--kv-size:22px;--num-input:22px;}
+html.theme-race{
+  --font-text:'Zen Kaku Gothic New','Hiragino Sans','Noto Sans JP',sans-serif;
+  --ink:#050506;--panel:#0e0f11;--rule:#1e2024;--line:#33363c;--raise:#121316;
+  --fg:#f3f3f0;--fg2:#8d9097;--fg3:#5c6067;
+  /* 段階＝保留の色（白・青・緑・赤・金・虹） */
+  --t0:#e9e9e4;--t1:#3d8bff;--t2:#2fd16d;--t3:#ff2d3c;--t4:#f5c542;
+  --rainbow:linear-gradient(90deg,#ff3b3b,#ff9f1c,#ffe23d,#3ddc6b,#3dc8ff,#5a6bff,#c45cff);
+  --plus:#2fd16d;
+}
+html.theme-meter{--font-text:'IBM Plex Sans JP','Hiragino Sans','Noto Sans JP',sans-serif;--font-num:'Saira Semi Condensed','DIN Alternate','Roboto Condensed',sans-serif;--num-w:600;--num-ls:0;--hero-size:52px;--box-size:26px;--kv-size:17px;--num-input:21px;}
+/* さらに暗く：どちらの見た目でもトークンだけ差し替える */
+html.theme-race.night{--ink:#000000;--panel:#08090a;--rule:#1b1c1f;--line:#26282c;--raise:#0b0c0d;--fg:#b9b5ac;--fg2:#6f6c66;--fg3:#45443f;--t0:#7f4540;--t1:#86703a;--t2:#5f7a52;--t3:#4a6b8a;--t4:#b8b3a5;--plus:#6f8f62;}
+
+/* 期待時給（DOMは同じ。レースは枠とランプ、計器盤は2本針） */
+.meter{display:grid;gap:8px;padding:4px 0 10px;}
+.stage{display:grid;gap:8px;min-width:0;}
+.kitai-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px;font-size:12px;color:var(--fg2);}
+.kitai-head .tier{font-size:14px;}
+.tier{font-size:13px;font-weight:700;color:var(--tier-color,var(--fg2));}
+.kitai-row{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;min-width:0;}
+.kitai{font-family:var(--font-num);font-variant-numeric:tabular-nums;font-weight:var(--num-w,600);font-size:var(--hero-size,52px);line-height:1;letter-spacing:var(--num-ls,0);color:var(--num-color,var(--fg));display:flex;align-items:baseline;gap:6px;min-width:0;overflow-wrap:anywhere;}
+.kitai small{font-family:var(--font-text);font-size:12px;color:var(--fg2);font-weight:400;}
+.kitai.rainbow{background:var(--rainbow);background-size:200% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:kitai-flow 6s linear infinite;}
+.tier.rainbow{background:var(--rainbow);-webkit-background-clip:text;background-clip:text;color:transparent;}
+@keyframes kitai-flow{to{background-position:200% 0;}}
+.kitai-empty{font-size:14px;font-weight:600;color:var(--fg2);padding:6px 0;}
+.gauge{position:relative;height:16px;margin-top:6px;}
+.bands{position:absolute;inset:5px 0;display:flex;gap:3px;}
+.band{height:100%;border-radius:1px;background:transparent;box-shadow:inset 0 0 0 1px var(--line);}
+.band.lit{box-shadow:none;}
+.needle{position:absolute;top:0;bottom:0;}
+.needle.now{width:2px;margin-left:-1px;background:var(--fg);}
+.needle.full{border-left:2px dotted var(--fg2);}
+.pin{position:absolute;top:-3px;bottom:-3px;width:2px;margin-left:-1px;background:var(--fg);}
+.scale{position:relative;height:14px;font-size:11px;color:var(--fg3);}
+.scale span{position:absolute;transform:translateX(-50%);white-space:nowrap;}
+.scale span:first-child{transform:none;}
+.now-line{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:12px;color:var(--fg2);}
+.now-line .num{font-size:20px;color:var(--fg);}
+.legend{display:flex;gap:12px;font-size:11px;color:var(--fg3);}
+.legend i{display:inline-block;width:10px;vertical-align:middle;margin-right:4px;}
+.legend .a{border-top:2px solid var(--fg);} .legend .b{border-top:2px dotted var(--fg2);}
+
+/* 台枠の光（レースのみ。見送りは光らない。虹は枠を回る） */
+html.theme-race .stage{position:relative;background:var(--panel);border-radius:14px;padding:12px 12px 10px;box-shadow:inset 0 0 0 2px var(--frame,var(--rule)),0 0 var(--glow,0px) var(--glow-c,transparent);transition:box-shadow .3s;}
+html.theme-race .stage.rainbow{box-shadow:none;}
+html.theme-race .stage.rainbow::before{content:'';position:absolute;inset:0;border-radius:14px;padding:2px;background:conic-gradient(from var(--spin,0deg),#ff3b3b,#ff9f1c,#ffe23d,#3ddc6b,#3dc8ff,#5a6bff,#c45cff,#ff3b3b);-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;animation:kitai-spin 3s linear infinite;}
+html.theme-race .stage.rainbow::after{content:'';position:absolute;inset:-6px;border-radius:18px;z-index:-1;filter:blur(10px);opacity:.55;background:conic-gradient(from var(--spin,0deg),#ff3b3b,#ff9f1c,#ffe23d,#3ddc6b,#3dc8ff,#5a6bff,#c45cff,#ff3b3b);animation:kitai-spin 3s linear infinite;}
+@property --spin{syntax:'<angle>';inherits:false;initial-value:0deg;}
+@keyframes kitai-spin{to{--spin:360deg;}}
+/* 告知ランプ（レースのみ。中は黒のドームで、段階の文字だけ光る。上がった瞬間だけペカッ） */
+.lamp{position:relative;flex-shrink:0;width:52px;height:52px;border-radius:50%;display:grid;place-items:center;font-family:'Potta One',var(--font-text);font-size:14px;line-height:1;background:radial-gradient(ellipse at 50% 30%,#1a1b1f 0%,#050506 70%);color:#17181b;box-shadow:inset 0 3px 6px rgba(255,255,255,.07),inset 0 -8px 14px rgba(0,0,0,.9),0 0 0 2px #2a2c31,0 0 0 3px #0b0c0e;transition:color .3s,text-shadow .3s;}
+.lamp::before{content:'';position:absolute;left:24%;right:24%;top:5px;height:9px;border-radius:50%;background:linear-gradient(rgba(255,255,255,.16),rgba(255,255,255,0));pointer-events:none;}
+.lamp.on{color:color-mix(in srgb,var(--lc) 70%,#fff);text-shadow:0 0 3px color-mix(in srgb,var(--lc) 70%,transparent),0 0 7px color-mix(in srgb,var(--lc) 35%,transparent);}
+.lamp.on.rainbow{color:transparent;text-shadow:none;}
+.lamp.on.rainbow span{background:var(--rainbow);background-size:200% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:kitai-flow 3s linear infinite;filter:drop-shadow(0 0 3px rgba(255,226,61,.45));}
+@keyframes peka{0%{filter:brightness(1);}20%{filter:brightness(1.7);}100%{filter:brightness(1);}}
+.lamp.peka{animation:peka .45s ease-out;}
+/* 見た目ごとに出す部品を切り替える（DOMは共通） */
+html.theme-meter .lamp,html.theme-meter .pin,html.theme-meter .fuel{display:none!important;}
+html.theme-race .needle,html.theme-race .scale,html.theme-race .legend{display:none!important;}
+html.theme-race .band{box-shadow:none;opacity:.22;}
+html.theme-race .band.lit{opacity:1;}
+
+/* 板（回転率・ボーダー差・収支・仕事量・運） */
+.boards{display:grid;gap:8px;}
+.boards-2{grid-template-columns:1fr 1fr;}
+.boards-3{grid-template-columns:repeat(3,minmax(0,1fr));}
+.box{display:grid;gap:2px;min-width:0;padding:4px 0;}
+.box .k{font-size:11px;color:var(--fg2);overflow-wrap:anywhere;}
+.box .v{font-family:var(--font-num);font-variant-numeric:tabular-nums;font-weight:var(--num-w,600);font-size:var(--box-size,24px);line-height:1.15;overflow-wrap:anywhere;}
+.box .s{font-size:11px;color:var(--fg2);}
+.box .s .num{color:var(--fg);font-size:13px;}
+html.theme-race .box{background:var(--panel);border:1px solid var(--rule);border-radius:6px;padding:8px 10px;text-align:center;}
+html.theme-race .box .k{font-size:10px;}
+html.theme-race .box.delta{border-color:var(--plus);}
+/* 持ち玉比率の帯 */
+.fuel{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;font-size:11px;color:var(--fg2);}
+.fuel .bar{height:8px;background:var(--rule);border-radius:2px;overflow:hidden;}
+.fuel .bar i{display:block;height:100%;width:0;background:var(--fg2);transition:width .3s;}
+.fuel b{font-family:var(--font-num);font-size:16px;color:var(--fg);}
+
+/* レースでは板・入力欄に細い枠をつけ、数字を書体に合わせる */
+html.theme-race .group{border:1px solid var(--rule);border-radius:8px;padding:12px;background:var(--panel);}
+html.theme-race .reward{border-radius:6px;background:var(--panel);}
+.field input.n,.input-field[type=number],.time input[type=time]{font-size:var(--num-input,21px);}
+.kv dd.num{font-size:var(--kv-size,17px);}
+html.theme-race .hero-row .v,html.theme-race .hit .b{font-size:var(--box-size,24px);}
+
+/* 設定の「一覧の行」（項目名＝左／今の値＝右。行の高さをそろえ、罫線で区切る） */
+.rows{display:grid;gap:0;}
+.rows .row{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:52px;border-bottom:1px solid var(--rule);padding:4px 0;}
+.rows .row:last-child{border-bottom:0;}
+.row-label{font-size:13px;color:var(--fg2);flex-shrink:0;display:flex;align-items:center;gap:8px;white-space:nowrap;}
+.row-label .sw{width:12px;height:12px;border-radius:3px;display:inline-block;flex-shrink:0;}
+.row-ctl{flex:1;min-width:0;display:flex;justify-content:flex-end;align-items:center;gap:8px;}
+.row-ctl-stack{flex-direction:column;align-items:stretch;gap:4px;}
+.row-ctl-stack select{width:100%;}
+.rows input,.rows select{width:100%;min-width:0;background:transparent;border:0;color:var(--fg);font-family:var(--font-num);font-size:var(--num-input,19px);font-weight:var(--num-w,600);text-align:right;padding:8px 0;min-height:44px;}
+.rows input[type=text],.rows select{font-family:var(--font-text);font-size:15px;font-weight:500;}
+.rows input[type=text]{text-align:right;}
+.rows select{text-align:left;appearance:none;-webkit-appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--fg2) 50%),linear-gradient(135deg,var(--fg2) 50%,transparent 50%);background-position:calc(100% - 10px) 55%,calc(100% - 5px) 55%;background-size:5px 5px;background-repeat:no-repeat;padding-right:20px;}
+.rows input:focus,.rows select:focus{outline:none;}
+.rows .auto{font-family:var(--font-num);font-size:var(--num-input,19px);font-weight:var(--num-w,600);color:var(--fg);text-align:right;}
+.rows .chip-select{justify-content:flex-end;}
+/* 本物の切り替えスイッチ・セグメント */
+.switch{position:relative;width:56px;height:40px;border:0;background:none;cursor:pointer;flex-shrink:0;padding:0;}
+.switch::before{content:'';position:absolute;left:2px;right:2px;top:50%;height:26px;transform:translateY(-50%);border-radius:999px;border:1px solid var(--line);}
+.switch::after{content:'';position:absolute;top:50%;left:5px;width:20px;height:20px;border-radius:50%;background:var(--fg3);transform:translateY(-50%);transition:left .2s,background .2s;}
+.switch[aria-pressed="true"]::before{border-color:var(--fg);}
+.switch[aria-pressed="true"]::after{left:31px;background:var(--fg);}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:999px;overflow:hidden;flex-shrink:0;}
+.seg button{background:none;border:0;color:var(--fg2);font-size:12px;font-weight:600;padding:8px 12px;min-height:40px;cursor:pointer;}
+.seg button[aria-pressed="true"]{background:var(--fg);color:var(--ink);}
+.seg[aria-disabled="true"]{opacity:.4;}
+
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important;}}
 </style>
 </head>
 <body>
@@ -274,22 +399,28 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield;}
   </div>
   <div id="main-body" style="display:none;">
 
-    <!-- 1. 期待時給メーター（数字＝実力、点線の針＝実力、実線の針＝今） -->
+    <!-- 1. 期待時給（レース＝台枠の光とランプ／計器盤＝2本針のメーター。DOMは共通） -->
     <section class="meter" id="kitai-meter" aria-label="期待時給">
-      <div class="meter-head"><span>期待時給（実力・持ち玉100%）</span><span class="tier" id="kpi-kitai-sub">—</span></div>
-      <div class="kitai num"><span id="kpi-kitai">—</span><small>円/時</small></div>
-      <div class="kitai-empty" id="kitai-empty">回転数と投資を入れると出ます</div>
-      <div class="gauge" aria-hidden="true">
-        <div class="bands" id="kitai-bands"></div>
-        <div class="needle full" id="kitai-needle-full"></div>
-        <div class="needle now" id="kitai-needle-now" hidden></div>
+      <div class="stage" id="kitai-stage">
+        <div class="kitai-head"><span>期待時給（実力・持ち玉100%）</span><span class="tier" id="kpi-kitai-sub">—</span></div>
+        <div class="kitai-row">
+          <span class="kitai num"><span id="kpi-kitai">—</span><small>円/時</small></span>
+          <span class="lamp" id="kitai-lamp" role="img" aria-label="段階"><span id="kitai-lamp-text">—</span></span>
+        </div>
+        <div class="kitai-empty" id="kitai-empty">回転数と投資を入れると出ます</div>
+        <div class="now-line" id="kitai-now-line" hidden>
+          <span>今の持ち玉比率 <span class="num" id="kitai-now-ratio">—%</span> での期待時給</span>
+          <span class="num" id="kpi-kitai-now">—</span>
+        </div>
+        <div class="gauge" aria-hidden="true">
+          <div class="bands" id="kitai-bands"></div>
+          <div class="needle full" id="kitai-needle-full"></div>
+          <div class="needle now" id="kitai-needle-now" hidden></div>
+          <div class="pin" id="kitai-needle-pin"></div>
+        </div>
+        <div class="scale num" id="kitai-scale" aria-hidden="true"></div>
+        <div class="legend"><span><i class="a"></i>今</span><span><i class="b"></i>実力</span></div>
       </div>
-      <div class="scale num" id="kitai-scale" aria-hidden="true"></div>
-      <div class="now-line" id="kitai-now-line" hidden>
-        <span>今の持ち玉比率 <span class="num" id="kitai-now-ratio">—%</span> での期待時給</span>
-        <span class="num" id="kpi-kitai-now">—</span>
-      </div>
-      <div class="legend"><span><i class="a"></i>今</span><span><i class="b"></i>実力</span></div>
     </section>
 
     <!-- 2. 時間（終了が空なら「未入力」） -->
@@ -315,23 +446,33 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield;}
     <!-- 3. この台の癖（中身は別の担当が作る） -->
     <section class="kuse" id="kuse-line" aria-label="この台の癖" hidden></section>
 
-    <!-- 4. 回転率 -->
-    <section class="rate" aria-label="回転率">
-      <span>回転率 <span class="num big" id="disp-rot-rate">—</span> 回/千円</span>
-      <span>ボーダー <span class="num" id="main-border">—</span>　<span class="num d" id="main-border-diff">—</span></span>
+    <!-- 4. 回転率とボーダー差の板（ボーダー差は緑の枠） -->
+    <section class="boards boards-2" aria-label="回転率">
+      <div class="box"><span class="k">回転率（回/千円）</span><span class="v num" id="disp-rot-rate">—</span></div>
+      <div class="box delta"><span class="k">ボーダー <span class="num" id="main-border">—</span> との差</span><span class="v num" id="main-border-diff">—</span></div>
     </section>
 
-    <!-- 5. 収支（下に時給・差玉）と仕事量（下に時給・運） -->
-    <section class="figs" aria-label="収支と仕事量">
-      <div class="fig" id="card-kosshi">
+    <!-- 持ち玉比率の帯（レースのときだけ表示） -->
+    <div class="fuel" id="kitai-fuel" hidden>
+      <span>持ち玉比率</span><span class="bar"><i id="kitai-fuel-bar"></i></span><b class="num" id="kitai-fuel-val">—%</b>
+    </div>
+
+    <!-- 5. 収支（下に時給・差玉）・仕事量（下に時給）・運 -->
+    <section class="boards boards-3" aria-label="収支と仕事量">
+      <div class="box" id="card-kosshi">
         <span class="k">収支</span>
         <span class="v num" id="kpi-kosshi">—</span>
         <span class="s">時給 <span class="num" id="kpi-jikyu">—</span>　差玉 <span class="num" id="kpi-sagitama">—</span></span>
       </div>
-      <div class="fig" id="card-shigoto">
+      <div class="box" id="card-shigoto">
         <span class="k">仕事量</span>
         <span class="v num" id="kpi-shigoto">—</span>
-        <span class="s" id="card-un">時給 <span class="num" id="kpi-shigoto-sub">—</span>　運 <span class="num" id="kpi-un">—</span></span>
+        <span class="s">時給 <span class="num" id="kpi-shigoto-sub">—</span></span>
+      </div>
+      <div class="box" id="card-un">
+        <span class="k">運</span>
+        <span class="v num" id="kpi-un">—</span>
+        <span class="s">理論比</span>
       </div>
     </section>
 
@@ -566,30 +707,51 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield;}
 <div class="tab-content" id="tab-setting">
   <section class="group" aria-label="今日の台">
     <h2>今日の台</h2>
-    <div class="inputs">
-      <div class="field"><label for="in-date">日付</label><input type="date" id="in-date" onfocus="fillDateIfEmpty(); recalc();" oninput="save(); recalc(); triggerRuikeiSync();"></div>
-      <div class="field"><label for="in-daiban">台番号</label><input class="n" type="number" inputmode="numeric" placeholder="例：123" id="in-daiban" oninput="save()"></div>
-      <div class="field wide"><label for="in-shop">店</label><select id="in-shop" onchange="onShopChange()"><option value="">選択してください</option></select></div>
-      <div class="field wide"><label for="in-maker-filter">メーカー絞り込み</label><select id="in-maker-filter" onchange="onMakerFilterChange()"><option value="">全メーカー</option></select></div>
-      <div class="field wide"><label for="in-kishu">機種</label><select id="in-kishu" onchange="onKishuChange()"><option value="">選択してください</option></select></div>
-      <div class="field wide"><label>換金率</label><div class="auto" id="disp-kankin">—</div></div>
-      <div class="field wide"><label for="in-event">イベント</label><input type="text" id="in-event" placeholder="例：じゃんじゃん来店" oninput="save()"></div>
+    <div class="rows">
+      <div class="row"><label class="row-label" for="in-date">日付</label><span class="row-ctl"><input type="date" id="in-date" onfocus="fillDateIfEmpty(); recalc();" oninput="save(); recalc(); triggerRuikeiSync();"></span></div>
+      <div class="row"><label class="row-label" for="in-daiban">台番号</label><span class="row-ctl"><input type="number" inputmode="numeric" placeholder="123" id="in-daiban" oninput="save()"></span></div>
+      <div class="row"><label class="row-label" for="in-shop">店</label><span class="row-ctl"><select id="in-shop" onchange="onShopChange()"><option value="">選択してください</option></select></span></div>
+      <div class="row">
+        <label class="row-label" for="in-kishu">機種</label>
+        <span class="row-ctl row-ctl-stack">
+          <select id="in-maker-filter" aria-label="メーカー絞り込み" onchange="onMakerFilterChange()"><option value="">全メーカー</option></select>
+          <select id="in-kishu" onchange="onKishuChange()"><option value="">選択してください</option></select>
+        </span>
+      </div>
+      <div class="row"><span class="row-label">換金率</span><span class="row-ctl"><span class="auto" id="disp-kankin">—</span></span></div>
+      <div class="row"><label class="row-label" for="in-event">イベント</label><span class="row-ctl"><input type="text" id="in-event" placeholder="なし" oninput="save()"></span></div>
+      <div class="row"><span class="row-label">打ち手</span><span class="row-ctl"><span class="chip-select" id="uchi-chips"></span></span></div>
+      <div class="row"><span class="row-label">ノリうち</span><span class="row-ctl"><button type="button" class="switch" id="nori-toggle" aria-pressed="false" aria-label="ノリうち" onclick="toggleNoriuchi()"></button></span></div>
     </div>
-    <div class="field"><label>打ち手</label><div class="chip-select" id="uchi-chips"></div></div>
-    <div class="toggle"><span>ノリうち（記録は自分名義・半分）</span><button type="button" class="chip" id="nori-toggle" aria-pressed="false" onclick="toggleNoriuchi()">オフ</button></div>
+  </section>
+
+  <section class="group" aria-label="画面">
+    <h2>画面</h2>
+    <div class="rows">
+      <div class="row"><span class="row-label">見た目</span><span class="row-ctl"><span class="seg" id="theme-seg">
+        <button type="button" data-theme="race" aria-pressed="true">レース</button>
+        <button type="button" data-theme="meter" aria-pressed="false">計器盤</button>
+      </span></span></div>
+      <div class="row"><span class="row-label">書体</span><span class="row-ctl"><span class="seg" id="font-seg">
+        <button type="button" data-font="michroma" aria-pressed="true">Michroma</button>
+        <button type="button" data-font="titillium" aria-pressed="false">Titillium</button>
+      </span></span></div>
+      <div class="row"><span class="row-label">さらに暗く</span><span class="row-ctl"><button type="button" class="switch" id="night-toggle" aria-pressed="false" aria-label="さらに暗く"></button></span></div>
+    </div>
   </section>
 
   <button class="send" id="send-btn">記録を送信</button>
 
   <section class="group" aria-label="期待時給の段階">
     <h2>期待時給の段階<span>円/時以上</span></h2>
-    <div class="th-row"><span class="lamp" style="background:var(--t1)"></span><div class="field"><label for="th-warn">及第</label><input class="n" type="number" inputmode="numeric" id="th-warn" value="1500" oninput="saveThresholds()"></div></div>
-    <div class="th-row"><span class="lamp" style="background:var(--t2)"></span><div class="field"><label for="th-ok">合格</label><input class="n" type="number" inputmode="numeric" id="th-ok" value="1800" oninput="saveThresholds()"></div></div>
-    <div class="th-row"><span class="lamp" style="background:var(--t3)"></span><div class="field"><label for="th-good">良台</label><input class="n" type="number" inputmode="numeric" id="th-good" value="2300" oninput="saveThresholds()"></div></div>
-    <div class="th-row"><span class="lamp" style="background:var(--t4)"></span><div class="field"><label for="th-great">神台</label><input class="n" type="number" inputmode="numeric" id="th-great" value="2800" oninput="saveThresholds()"></div></div>
+    <div class="rows">
+      <div class="row"><span class="row-label"><i class="sw" style="background:var(--t1)"></i>及第</span><span class="row-ctl"><input class="n" type="number" inputmode="numeric" id="th-warn" value="1500" oninput="saveThresholds()"></span></div>
+      <div class="row"><span class="row-label"><i class="sw" style="background:var(--t2)"></i>合格</span><span class="row-ctl"><input class="n" type="number" inputmode="numeric" id="th-ok" value="1800" oninput="saveThresholds()"></span></div>
+      <div class="row"><span class="row-label"><i class="sw" style="background:var(--t3)"></i>良台</span><span class="row-ctl"><input class="n" type="number" inputmode="numeric" id="th-good" value="2200" oninput="saveThresholds()"></span></div>
+      <div class="row"><span class="row-label"><i class="sw" style="background:var(--t4)"></i>神台</span><span class="row-ctl"><input class="n" type="number" inputmode="numeric" id="th-great" value="2600" oninput="saveThresholds()"></span></div>
+      <div class="row"><span class="row-label"><i class="sw" style="background:var(--rainbow)"></i>虹</span><span class="row-ctl"><input class="n" type="number" inputmode="numeric" id="th-rainbow" value="3000" oninput="saveThresholds()"></span></div>
+    </div>
   </section>
-
-  <div class="toggle"><span>さらに暗く</span><button type="button" class="chip" id="night-toggle" aria-pressed="false">オフ</button></div>
 
   <button class="danger" id="reset-btn">入力をすべて消す</button>
 </div>
@@ -986,7 +1148,8 @@ function onInvestBallInput() {
 }
 
 window.addEventListener('DOMContentLoaded', async () => {
-  // 見た目の設定（さらに暗く）を先に適用する
+  // 見た目（レース／計器盤・書体）と「さらに暗く」を先に適用する
+  loadTheme();
   loadNightMode();
   // キャッシュがあれば即座に表示
   const cache = localStorage.getItem('masters_cache');
@@ -1148,6 +1311,10 @@ function bindEvents() {
   // さらに暗く（夜間モード）
   document.getElementById('night-toggle').onclick = toggleNightMode;
 
+  // 見た目と書体の切り替え
+  document.querySelectorAll('#theme-seg button').forEach(b => { b.onclick = () => setThemeStyle(b.dataset.theme); });
+  document.querySelectorAll('#font-seg button').forEach(b => { b.onclick = () => setThemeFont(b.dataset.font); });
+
   // 送信・リセット・更新
   document.getElementById('send-btn').onclick  = doSend;
   document.getElementById('reset-btn').onclick = doReset;
@@ -1173,8 +1340,9 @@ function applyNightMode(on) {
   try { document.documentElement.classList.toggle('night', !!on); } catch(e) {}
   const btn = document.getElementById('night-toggle');
   if (btn) {
-    btn.textContent = on ? 'オン' : 'オフ';
+    // 本物の切り替えスイッチとして状態を伝える（文字は持たない）
     btn.setAttribute('aria-pressed', String(!!on));
+    btn.setAttribute('aria-checked', String(!!on));
     if (on) btn.classList.add('selected'); else btn.classList.remove('selected');
   }
 }
@@ -1189,6 +1357,47 @@ function toggleNightMode() {
   on = !on;
   try { localStorage.setItem(NIGHT_KEY, on ? '1' : '0'); } catch(e) {}
   applyNightMode(on);
+}
+
+// =============================================
+// 見た目（レース／計器盤）と書体（Michroma／Titillium）の切り替え
+// <html> のクラスで色・書体・大きさを差し替える（DOMは共通）
+// =============================================
+const THEME_KEY = 'theme_style';
+const FONT_KEY  = 'theme_font';
+let themeStyle = 'race';
+let themeFont  = 'michroma';
+function applyTheme(style, font) {
+  themeStyle = parseThemeStyle(style);
+  themeFont  = parseThemeFont(font);
+  try {
+    const cl = document.documentElement.classList;
+    cl.remove('theme-race','theme-meter');
+    cl.add('theme-' + themeStyle);
+    cl.remove('font-michroma','font-titillium');
+    cl.add('font-' + themeFont);
+  } catch(e) {}
+  const seg = document.getElementById('theme-seg');
+  if (seg) seg.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.theme === themeStyle)));
+  const fseg = document.getElementById('font-seg');
+  if (fseg) {
+    fseg.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.font === themeFont)));
+    // 書体はレースのときだけ有効
+    fseg.setAttribute('aria-disabled', String(themeStyle === 'meter'));
+  }
+}
+function saveTheme() {
+  try { localStorage.setItem(THEME_KEY, themeStyle); localStorage.setItem(FONT_KEY, themeFont); } catch(e) {}
+}
+function setThemeStyle(style) { applyTheme(style, themeFont); saveTheme(); recalc(); }
+function setThemeFont(font)   { applyTheme(themeStyle, font); saveTheme(); recalc(); }
+function loadTheme() {
+  let style = 'race', font = 'michroma';
+  try {
+    style = parseThemeStyle(localStorage.getItem(THEME_KEY));
+    font  = parseThemeFont(localStorage.getItem(FONT_KEY));
+  } catch(e) {}
+  applyTheme(style, font);
 }
 
 // =============================================
@@ -1366,9 +1575,10 @@ function updateNoriuchiMode() {
   const toggle = document.getElementById('nori-toggle');
   if (sec) sec.style.display = S.noriuchi ? '' : 'none';
   if (toggle) {
+    // 本物の切り替えスイッチとして状態を伝える（文字は持たない）
     toggle.classList.toggle('selected', S.noriuchi);
     toggle.setAttribute('aria-pressed', String(S.noriuchi));
-    toggle.textContent = S.noriuchi ? 'オン' : 'オフ';
+    toggle.setAttribute('aria-checked', String(S.noriuchi));
   }
 }
 
@@ -2555,10 +2765,11 @@ function calcHoshuLocal(ruikeiSagitama, avgKitaiJikyu, ruikeiGenkinInvest, uchi)
 // =============================================
 function getThresholds() {
   return {
-    warn:  parseInt(document.getElementById('th-warn').value)  || 1500,
-    ok:    parseInt(document.getElementById('th-ok').value)    || 1800,
-    good:  parseInt(document.getElementById('th-good').value)  || 2300,
-    great: parseInt(document.getElementById('th-great').value) || 2800,
+    warn:    parseInt(document.getElementById('th-warn').value)    || 1500,
+    ok:      parseInt(document.getElementById('th-ok').value)      || 1800,
+    good:    parseInt(document.getElementById('th-good').value)    || 2200,
+    great:   parseInt(document.getElementById('th-great').value)   || 2600,
+    rainbow: parseInt(document.getElementById('th-rainbow').value) || 3000,
   };
 }
 function saveThresholds() {
@@ -2571,18 +2782,21 @@ function loadThresholds() {
   if (!raw) return;
   try {
     const t = JSON.parse(raw);
-    if (t.warn)  document.getElementById('th-warn').value  = t.warn;
-    if (t.ok)    document.getElementById('th-ok').value    = t.ok;
-    if (t.good)  document.getElementById('th-good').value  = t.good;
-    if (t.great) document.getElementById('th-great').value = t.great;
+    if (t.warn)    document.getElementById('th-warn').value    = t.warn;
+    if (t.ok)      document.getElementById('th-ok').value      = t.ok;
+    if (t.good)    document.getElementById('th-good').value    = t.good;
+    if (t.great)   document.getElementById('th-great').value   = t.great;
+    if (t.rainbow) document.getElementById('th-rainbow').value = t.rainbow;
   } catch(e) {}
 }
 // ==== 表示用の純関数（ここから）
 // 期待時給メーターの下限・上限（円/時）。範囲外は端に丸める。
 const KITAI_METER_MIN = 800;
-const KITAI_METER_MAX = 3400;
-// 5段階の名前（0=見送り … 4=神台）。内部キー（warn/ok/good/great）は変えない。
-const KITAI_TIER_NAMES = ['見送り', '及第', '合格', '良台', '神台'];
+const KITAI_METER_MAX = 3800;
+// 6段階の名前（0=見送り … 5=虹）。内部キー（warn/ok/good/great/rainbow）は変えない。
+const KITAI_TIER_NAMES = ['見送り', '及第', '合格', '良台', '神台', '虹'];
+// 枠の光の強さ（段階が上のほど外側のにじみが強い。見送りと虹は別扱い）
+const KITAI_GLOW = [0, 0, 6, 12, 18, 0];
 
 // 期待時給をメーター上の位置（%）に変換する。数値でなければ null。
 function kitaiMeterPos(v) {
@@ -2591,32 +2805,43 @@ function kitaiMeterPos(v) {
   return Math.min(100, Math.max(0, p));
 }
 
-// 期待時給の段階（0〜4）。しきい値未満は 0（見送り）。数値でなければ -1。
+// 期待時給の段階（0〜5）。しきい値未満は 0（見送り）。数値でなければ -1。
 function kitaiTier(v, thresholds) {
   if (v === null || v === undefined || !Number.isFinite(Number(v))) return -1;
   const t = thresholds;
-  if (v >= t.great) return 4;
-  if (v >= t.good)  return 3;
-  if (v >= t.ok)    return 2;
-  if (v >= t.warn)  return 1;
+  if (v >= t.rainbow) return 5;
+  if (v >= t.great)   return 4;
+  if (v >= t.good)    return 3;
+  if (v >= t.ok)      return 2;
+  if (v >= t.warn)    return 1;
   return 0;
 }
 
-// メーターの5区間。区間の幅はしきい値の間隔に比例させる（最低1）。
+// メーターの6区間。区間の幅はしきい値の間隔に比例させる（最低1）。
 function kitaiMeterBands(thresholds) {
   const t = thresholds;
-  const edges = [KITAI_METER_MIN, t.warn, t.ok, t.good, t.great, KITAI_METER_MAX];
+  const edges = [KITAI_METER_MIN, t.warn, t.ok, t.good, t.great, t.rainbow, KITAI_METER_MAX];
   const widths = [];
   for (let i = 0; i < edges.length - 1; i++) widths.push(Math.max(1, edges[i + 1] - edges[i]));
   return { edges, widths };
 }
 
-// 段階に対応する色とラベル。number は大きな数字に使う色（見送りは灰、及第は通常）。
+// 段階に対応する色とラベル。
+// color＝レースの段階色（虹はグラデーション）、number＝計器盤の数字色、rainbow＝虹かどうか。
 function kitaiTierStyle(tier) {
-  if (tier < 0) return { color:'var(--fg2)', number:'var(--fg2)', label:'—' };
+  if (tier < 0) return { color:'var(--fg2)', number:'var(--fg2)', label:'—', rainbow:false };
+  if (tier === 5) return { color:'var(--rainbow)', number:'var(--rainbow)', label: KITAI_TIER_NAMES[5], rainbow:true };
   const color = 'var(--t' + tier + ')';
   const number = tier === 0 ? 'var(--fg2)' : tier === 1 ? 'var(--fg)' : color;
-  return { color, number, label: KITAI_TIER_NAMES[tier] };
+  return { color, number, label: KITAI_TIER_NAMES[tier], rainbow:false };
+}
+
+// 見た目の選択（保存値・入力から決める。不正・未設定は既定のレース・Michroma）
+function parseThemeStyle(v) { return v === 'meter' ? 'meter' : 'race'; }
+function parseThemeFont(v) { return v === 'titillium' ? 'titillium' : 'michroma'; }
+// <html> に付けるクラス名
+function themeClasses(style, font) {
+  return ['theme-' + parseThemeStyle(style), 'font-' + parseThemeFont(font)];
 }
 
 // 初当たり確率（実測）＝通常回転 ÷ 記録の件数。件数0・回転0は null。
@@ -2638,14 +2863,20 @@ function hasRound11Plus(kishu) {
 }
 // ==== 表示用の純関数（ここまで）
 
-function kitaiColor(v) {
-  const s = kitaiTierStyle(kitaiTier(v, getThresholds()));
-  return { color: s.number, label: s.label };
+// 今の見た目がレースかどうか（表示の出し分けに使う。DOMは共通）
+function isRaceTheme() {
+  try { return document.documentElement.classList.contains('theme-race'); } catch(e) { return false; }
 }
 
-// 期待時給メーターの描画。
+function kitaiColor(v) {
+  const s = kitaiTierStyle(kitaiTier(v, getThresholds()));
+  return { color: isRaceTheme() ? s.color : s.number, label: s.label };
+}
+
+// 期待時給の描画（DOMは共通。レース＝台枠の光・ランプ・6区間の帯と白い針／計器盤＝2本針の目盛り）
 // full=実力（持ち玉100%）、now=今の持ち玉比率での期待時給、mochiPct=今の持ち玉比率(%)
 // now か mochiPct が無いときは「今」の針と行を出さない。計算はしない。
+let lastKitaiTier = null; // ペカッ用：前回の段階（表示だけの記憶。保存しない）
 function renderKitaiMeter(full, now, mochiPct) {
   const meter = document.getElementById('kitai-meter');
   if (!meter) return;
@@ -2658,16 +2889,26 @@ function renderKitaiMeter(full, now, mochiPct) {
   const nowRatio= document.getElementById('kitai-now-ratio');
   const needFull= document.getElementById('kitai-needle-full');
   const needNow = document.getElementById('kitai-needle-now');
+  const pin     = document.getElementById('kitai-needle-pin');
+  const lamp    = document.getElementById('kitai-lamp');
+  const lampText= document.getElementById('kitai-lamp-text');
+  const stage   = document.getElementById('kitai-stage');
+  const fuel    = document.getElementById('kitai-fuel');
 
+  const isRace = isRaceTheme();
   const t = getThresholds();
   const tier = kitaiTier(full, t);
   const style = kitaiTierStyle(tier);
-
   const hasFull = full !== null && full !== undefined && Number.isFinite(Number(full));
-  if (numEl) numEl.textContent = hasFull ? fmtN(Math.round(full)) : '—';
-  if (tierEl) tierEl.textContent = hasFull ? style.label : '';
-  // 値が無いときは、大きな「—」の代わりに何を入れると出るかを示す
+
+  // 数字（レースは段階色、計器盤は落ち着いた段階色。虹は文字の中を流す）
   const numRow = numEl ? numEl.closest('.kitai') : null;
+  if (numEl) numEl.textContent = hasFull ? fmtN(Math.round(full)) : '—';
+  if (numRow) numRow.classList.toggle('rainbow', hasFull && isRace && !!style.rainbow);
+  if (tierEl) {
+    tierEl.textContent = hasFull ? style.label : '';
+    tierEl.classList.toggle('rainbow', hasFull && isRace && !!style.rainbow);
+  }
   const emptyEl = document.getElementById('kitai-empty');
   const legendEl = meter.querySelector('.legend');
   if (numRow) numRow.hidden = !hasFull;
@@ -2675,9 +2916,34 @@ function renderKitaiMeter(full, now, mochiPct) {
   if (legendEl) legendEl.hidden = !hasFull;
   if (needFull) needFull.hidden = !hasFull;
   meter.style.setProperty('--tier-color', style.color);
-  meter.style.setProperty('--num-color', style.number);
+  meter.style.setProperty('--num-color', isRace ? style.color : style.number);
 
-  // 目盛り（区間幅はしきい値に比例、実力の段階まで点灯）
+  // ランプ（レースのみ表示）。中は黒で、段階の文字だけ光る
+  if (lampText) lampText.textContent = style.label;
+  if (lamp) {
+    lamp.hidden = !hasFull;
+    lamp.classList.toggle('on', hasFull && tier > 0);
+    lamp.classList.toggle('rainbow', hasFull && !!style.rainbow);
+    lamp.style.setProperty('--lc', style.rainbow ? 'var(--t4)' : style.color);
+    lamp.setAttribute('aria-label', '段階：' + style.label);
+    // 段階が上がった瞬間だけ一度明るくする（ペカッ）
+    if (hasFull && lastKitaiTier !== null && tier > lastKitaiTier) {
+      lamp.classList.remove('peka');
+      void lamp.offsetWidth;
+      lamp.classList.add('peka');
+    }
+  }
+  lastKitaiTier = hasFull ? tier : null;
+
+  // 台枠の光（レースのみ）。見送りは光らない。虹は枠を回る
+  if (stage) {
+    stage.classList.toggle('rainbow', hasFull && !!style.rainbow);
+    stage.style.setProperty('--frame', hasFull && tier > 0 ? style.color : 'var(--rule)');
+    stage.style.setProperty('--glow', String(hasFull ? (KITAI_GLOW[tier] || 0) : 0) + 'px');
+    stage.style.setProperty('--glow-c', style.rainbow ? 'transparent' : style.color);
+  }
+
+  // 目盛りの帯（区間幅はしきい値に比例。レースは各区間が段階の色、計器盤は点灯で色づく）
   const geo = kitaiMeterBands(t);
   if (bandsEl) {
     bandsEl.replaceChildren();
@@ -2686,13 +2952,14 @@ function renderKitaiMeter(full, now, mochiPct) {
       const lit = tier >= 0 && i <= tier;
       band.className = 'band' + (lit ? ' lit' : '');
       band.style.flex = String(w);
-      if (lit) band.style.background = style.color;
+      if (isRace) band.style.background = kitaiTierStyle(i).color;
+      else if (lit) band.style.background = style.color;
       bandsEl.appendChild(band);
     });
   }
   if (scaleEl) {
     scaleEl.replaceChildren();
-    const labels = ['見送り', fmtN(t.warn), fmtN(t.ok), fmtN(t.good), fmtN(t.great)];
+    const labels = ['見送り', fmtN(t.warn), fmtN(t.ok), fmtN(t.good), fmtN(t.great), fmtN(t.rainbow)];
     geo.edges.slice(0, -1).forEach((edge, i) => {
       const s = document.createElement('span');
       s.textContent = labels[i];
@@ -2701,8 +2968,10 @@ function renderKitaiMeter(full, now, mochiPct) {
     });
   }
 
-  // 針：点線＝実力、実線＝今
-  if (needFull) needFull.style.left = (kitaiMeterPos(full) ?? 0) + '%';
+  // 針：点線＝実力、実線＝今（計器盤）／白い針＝実力（レース）
+  const fullPos = kitaiMeterPos(full);
+  if (needFull) needFull.style.left = (fullPos ?? 0) + '%';
+  if (pin) pin.style.left = (fullPos ?? 0) + '%';
   const hasNow = now !== null && now !== undefined && Number.isFinite(Number(now))
     && mochiPct !== null && mochiPct !== undefined;
   if (nowLine) nowLine.hidden = !hasNow;
@@ -2711,9 +2980,20 @@ function renderKitaiMeter(full, now, mochiPct) {
     if (needNow) needNow.style.left = kitaiMeterPos(now) + '%';
     if (nowRatio) nowRatio.textContent = mochiPct + '%';
     if (nowNum) {
+      const ns = kitaiTierStyle(kitaiTier(now, t));
       nowNum.textContent = fmt(now);
-      nowNum.style.color = kitaiTierStyle(kitaiTier(now, t)).number;
+      nowNum.style.color = isRace ? ns.color : ns.number;
     }
+  }
+
+  // 持ち玉比率の帯（レースのみ表示。値が無ければ隠す）
+  if (fuel) {
+    const noMochi = mochiPct === null || mochiPct === undefined;
+    fuel.hidden = noMochi;
+    const bar = document.getElementById('kitai-fuel-bar');
+    const val = document.getElementById('kitai-fuel-val');
+    if (bar) bar.style.width = (noMochi ? 0 : mochiPct) + '%';
+    if (val) val.textContent = noMochi ? '—%' : mochiPct + '%';
   }
 }
 
