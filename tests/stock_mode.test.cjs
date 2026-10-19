@@ -23,7 +23,8 @@ vm.runInContext('recalc = () => {}; save = () => {}; triggerRuikeiSync = () => {
 
 vm.runInContext('toggleNoriuchi()', context);
 assert.equal(vm.runInContext('S.noriuchi', context), true);
-assert.equal(element('section-seisan').style.display, '');
+// 清算計算機は設定タブで常に表示（ノリうちの切り替えで隠さない）
+assert.notEqual(element('section-seisan').style.display, 'none');
 assert.equal(element('nori-toggle').attributes['aria-pressed'], 'true');
 selected = {textContent:'代1'};
 vm.runInContext('setDefaultStockCard(false)', context);
@@ -35,7 +36,7 @@ vm.runInContext('setDefaultStockCard(false)', context);
 assert.equal(element('in-stock-card').value, '友達');
 vm.runInContext('toggleNoriuchi()', context);
 assert.equal(vm.runInContext('S.noriuchi', context), false);
-assert.equal(element('section-seisan').style.display, 'none');
+assert.notEqual(element('section-seisan').style.display, 'none', 'ノリうちを切っても清算計算機は表示したまま');
 vm.runInContext("S.shop = {name:'A'}; stockBalancesCache = [{shop:'A', card:'自分', balance:750}]; S.stockStartAuto = false", context);
 element('in-stock-card').value = '自分';
 element('in-stock-start').value = '';

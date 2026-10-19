@@ -21,8 +21,9 @@ assert.ok(SEISAN_FIELD_IDS.includes('seisan-slot-rate'));
 assert.ok(SEISAN_FIELD_IDS.includes('seisan-slot-aite-recover-cash'));
 
 // --- section-seisan の中の input すべてが保存対象になっている ---
+// （清算計算機は設定タブへ移したので、id から次の </section> までを切り出す）
 const secStart = html.indexOf('id="section-seisan"');
-const secEnd = html.indexOf('<!-- 10. メモ', secStart);
+const secEnd = html.indexOf('</section>', secStart);
 assert.ok(secStart > 0 && secEnd > secStart);
 const section = html.slice(secStart, secEnd);
 const inputIds = [...section.matchAll(/<input[^>]*\bid="([^"]+)"/g)].map(m => m[1]);
