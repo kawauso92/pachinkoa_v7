@@ -66,7 +66,7 @@ assert.ok(html.includes('id="hatsua-expected"') && html.includes('id="hatsua-dif
 assert.ok(html.includes('id="total-expected"') && html.includes('id="total-diff"'));
 assert.ok(html.includes('id="jisoku-diff"'), '実測の時速の差');
 assert.ok(html.includes('id="kitai-fuel-val"') && html.includes('id="kpi-kado"'), '3行目の持ち玉比率・稼働');
-assert.ok(html.includes('label-row'), '台帳からはラベルの行に置く');
+assert.ok(/id="ledger-line"[\s\S]*?id="stock-from-ledger-btn"/.test(html), '台帳からは貯玉の欄の下の行に置く');
 assert.ok(html.includes('warn-empty'), '終了時間が空なら枠を注意の色に');
 assert.ok(html.includes("classList.toggle('warn-empty'"), 'recalc で枠を切り替える');
 // 差し色の使い所

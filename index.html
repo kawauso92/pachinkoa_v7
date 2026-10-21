@@ -459,6 +459,68 @@ html.theme-race .hero-row .v,html.theme-race .hit .b{font-size:var(--box-size,24
 #rot-mode-chips .chip{padding:6px 12px;font-size:12px;min-height:34px;}
 
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important;}}
+
+/* ============================================================
+   見た目1の配色：ダーク＝濃紺の夜／ライト＝昼間（白地）。地は1色で面は塗らない。
+   触れる場所（入力欄・ボタン）だけ塗りつぶした板として浮かせる
+   ============================================================ */
+html.theme-race{
+  --ink:#060a14;--panel:#060a14;--surface:transparent;--rule:#18203a;--line:#22304f;--raise:#0f1628;
+  --field:#121a2e;--field-hi:#1a2440;--field-quiet:#0d1424;
+  --fg:#eef3ff;--fg2:#9fb0d4;--fg3:#55648a;--warn:#ffc24a;
+}
+html.theme-race.mode-light{
+  color-scheme:light;
+  --ink:#f3f4f6;--panel:#f3f4f6;--surface:transparent;--rule:#d9dce1;--line:#c9cdd4;--raise:#ffffff;
+  --field:#ffffff;--field-hi:#ffffff;--field-quiet:#f8f9fa;
+  --fg:#121417;--fg2:#5d636d;--fg3:#a3a8b0;--warn:#e08a00;
+  --t0:#8a8d93;--t1:#1f6fe5;--t2:#159a4c;--t3:#d81f2e;--t4:#c99a12;--plus:#159a4c;--minus:#d81f2e;--focus:#1f6fe5;
+}
+/* まとまりは塗らず、見出しと罫線で区切る */
+html.theme-race .group{background:transparent;border-radius:0;padding:14px 0 6px;border-top:1px solid var(--rule);}
+/* 入力欄：塗りつぶした板（枠線なし）。入力中は差し色で縁取り */
+html.theme-race .field input,html.theme-race .field select,html.theme-race .field textarea,html.theme-race .input-field,html.theme-race .time input[type=time]{
+  background-color:var(--field);border:0;border-radius:10px;box-shadow:inset 0 0 0 1.5px transparent;}
+html.theme-race .field input:focus,html.theme-race .field select:focus,html.theme-race .field textarea:focus,html.theme-race .input-field:focus,html.theme-race .time input[type=time]:focus{
+  background-color:var(--field-hi);box-shadow:inset 0 0 0 2px var(--accent);}
+html.theme-race.mode-light .field input,html.theme-race.mode-light .field select,html.theme-race.mode-light .field textarea,html.theme-race.mode-light .input-field,html.theme-race.mode-light .time input[type=time]{
+  box-shadow:0 1px 2px rgba(0,0,0,.08),inset 0 0 0 1px var(--line);}
+html.theme-race .field label,html.theme-race .time>label{font-weight:700;color:var(--fg2);}
+html.theme-race .now-btn,html.theme-race .stock-from-ledger{background:var(--field-hi);border:0;color:var(--fg);font-weight:700;border-radius:10px;}
+html.theme-race.mode-light .now-btn,html.theme-race.mode-light .stock-from-ledger{box-shadow:0 1px 2px rgba(0,0,0,.08),inset 0 0 0 1px var(--line);}
+/* 使う頻度の低い欄（渡した玉・もらった玉）は小さく控えめ */
+html.theme-race .field.quiet input{background-color:var(--field-quiet);min-height:40px;font-size:18px;}
+html.theme-race .field.quiet label{font-weight:500;}
+/* 必須で空の欄：注意の色の枠と「未入力」 */
+.field.req input,.field.req .yen input,.time.req input[type=time]{box-shadow:inset 0 0 0 2px var(--warn)!important;}
+.field.req>label::after,.time.req>label::after{content:'未入力';margin-left:8px;color:var(--warn);font-weight:500;}
+/* 投資玉数：入力欄にしない計算結果の表示 */
+.calc-view{display:grid;gap:2px;justify-items:end;min-height:46px;align-content:center;}
+.calc-v{font-family:var(--font-num);font-weight:var(--num-w,700);font-size:var(--num-input,22px);line-height:1.1;color:var(--fg);}
+.calc-v.is-empty{color:var(--fg3);}
+.calc-src{font-size:11px;color:var(--fg3);text-align:right;}
+.link-btn{justify-self:end;background:none;border:0;color:var(--fg2);font-size:12px;padding:4px 0;min-height:32px;text-decoration:underline;text-underline-offset:3px;cursor:pointer;}
+/* 貯玉のかたまり：欄の高さをそろえ、下に台帳の行 */
+.stock-block{display:grid;gap:10px;}
+.stock-block+.stock-block{margin-top:0;}
+#stock-block-top:not(:empty){margin-bottom:12px;}
+.stock-first{margin:0;font-size:12px;color:var(--warn);line-height:1.5;}
+.ledger-line{display:flex;justify-content:space-between;align-items:center;gap:10px;min-height:40px;}
+.ledger-line .stock-balance-note{min-height:0;}
+.ledger-line .stock-from-ledger{flex-shrink:0;padding:0 14px;min-height:40px;font-size:13px;}
+/* 清算計算機：人ごとに2×2の欄 */
+.seisan-person{display:grid;gap:6px;}
+.seisan-who{font-size:12px;font-weight:700;color:var(--fg2);}
+.seisan-grid .input-field{min-height:44px;font-size:18px;}
+.seisan-line .input-field{width:80px;}
+/* 切り替えスイッチ：オンは通り道を差し色で塗り、横に「オン／オフ」 */
+html.theme-race .switch::before{background:var(--field);border:0;}
+html.theme-race .switch[aria-pressed="true"]::before{background:var(--accent);}
+html.theme-race .switch::after{background:var(--fg3);}
+html.theme-race .switch[aria-pressed="true"]::after{background:#fff;}
+.sw-state{font-size:12px;font-weight:700;color:var(--fg3);min-width:2.5em;text-align:right;}
+.sw-state.on{color:var(--fg);}
+.switch[aria-disabled="true"]{opacity:.4;pointer-events:none;}
 </style>
 </head>
 <body>
@@ -583,25 +645,39 @@ html.theme-race .hero-row .v,html.theme-race .hit .b{font-size:var(--box-size,24
       <div class="note">総回転 <span class="num" id="disp-total-rot">—</span>　通常回転 <span class="num" id="disp-normal-rot">—</span></div>
     </section>
 
-    <!-- 8. 収支入力（打つ順番。時間は上へ、清算計算機は設定タブへ移した） -->
-    <section class="group" aria-label="収支の入力">
+    <!-- 8. 収支入力（打つ順番。投資玉数は貯玉から出した結果を表示し、手で入れるときだけ入力欄にする） -->
+    <section class="group" id="section-money" aria-label="収支の入力">
       <h2>収支入力</h2>
+      <!-- 台帳に記録がない店では、貯玉のかたまりをここ（一番上）へ移す -->
+      <div id="stock-block-top"></div>
       <div class="inputs">
-        <div class="field"><label for="in-invest-ball">投資玉数 <span id="invest-ball-badge" class="badge-manual">入力</span></label><input class="n" type="number" inputmode="numeric" placeholder="0" id="in-invest-ball" oninput="onInvestBallInput()"></div>
-        <div class="field"><label for="in-invest">投資金額</label><div class="yen"><input class="n" type="number" inputmode="numeric" placeholder="0" id="in-invest" oninput="recalc();save()"></div></div>
-        <div class="field"><label for="in-stock-end">投資終了時貯玉</label><input class="n" type="number" inputmode="numeric" placeholder="0" id="in-stock-end" oninput="onStockInput(false)"><div id="stock-clamp-note" style="display:none;font-size:11px;color:var(--warn);line-height:1.4;">投資終了時貯玉が開始時貯玉より多いため0にしました</div></div>
-        <div class="field"><label for="in-recover">回収玉数</label><input class="n" type="number" inputmode="numeric" placeholder="0" id="in-recover" oninput="recalc();save()"></div>
+        <div class="field calc-field" id="invest-ball-field">
+          <label for="in-invest-ball">投資玉数 <span id="invest-ball-badge" class="badge-auto">自動</span></label>
+          <div class="calc-view" id="invest-ball-view">
+            <span class="num calc-v" id="invest-ball-disp">—</span>
+            <span class="calc-src" id="invest-ball-src">開始時貯玉と投資終了時貯玉から出します</span>
+          </div>
+          <input class="n" type="number" inputmode="numeric" placeholder="0" id="in-invest-ball" oninput="onInvestBallInput()" hidden>
+          <button type="button" class="link-btn" id="invest-ball-mode" onclick="toggleInvestBallManual()">手で入れる</button>
+        </div>
+        <div class="field" id="invest-field"><label for="in-invest">投資金額</label><div class="yen"><input class="n" type="number" inputmode="numeric" placeholder="0" id="in-invest" oninput="recalc();save()"></div></div>
+        <div class="field" id="stock-end-field"><label for="in-stock-end">投資終了時貯玉</label><input class="n" type="number" inputmode="numeric" placeholder="0" id="in-stock-end" oninput="onStockInput(false)"><div id="stock-clamp-note" style="display:none;font-size:11px;color:var(--warn);line-height:1.4;">投資終了時貯玉が開始時貯玉より多いため0にしました</div></div>
+        <div class="field" id="recover-field"><label for="in-recover">回収玉数</label><input class="n" type="number" inputmode="numeric" placeholder="0" id="in-recover" oninput="recalc();save()"></div>
         <div class="field quiet"><label for="in-watashita">渡した玉</label><input class="n" type="number" inputmode="numeric" placeholder="0" id="in-watashita" oninput="recalc();save()"></div>
         <div class="field quiet"><label for="in-moratta">もらった玉</label><input class="n" type="number" inputmode="numeric" placeholder="0" id="in-moratta" oninput="recalc();save()"></div>
-        <div class="field"><label for="in-stock-card">貯玉カード</label><input type="text" id="in-stock-card" list="stock-card-options" maxlength="80" placeholder="打ち手のカード" oninput="onStockCardInput()"><datalist id="stock-card-options"></datalist><div class="stock-balance-note" id="stock-balance-note"></div></div>
-        <div class="field">
-          <div class="label-row">
-            <label for="in-stock-start">開始時貯玉</label>
-            <button type="button" class="stock-from-ledger" id="stock-from-ledger-btn" onclick="fillStockFromLedger()">台帳から</button>
-          </div>
-          <input class="n" type="number" inputmode="numeric" placeholder="0" id="in-stock-start" oninput="onStockInput(true)">
-          <div class="note stock-ledger-msg" id="stock-ledger-msg"></div>
+      </div>
+      <!-- 貯玉（2回目以降は台帳から自動で入るので一番下） -->
+      <div class="stock-block" id="stock-block">
+        <p class="stock-first" id="stock-first-note" hidden>この店は台帳に記録がありません。開始時貯玉を入れてください（貯玉がなければ0）。</p>
+        <div class="inputs">
+          <div class="field"><label for="in-stock-card">貯玉カード</label><input type="text" id="in-stock-card" list="stock-card-options" maxlength="80" placeholder="打ち手のカード" oninput="onStockCardInput()"><datalist id="stock-card-options"></datalist></div>
+          <div class="field" id="stock-start-field"><label for="in-stock-start">開始時貯玉</label><input class="n" type="number" inputmode="numeric" placeholder="0" id="in-stock-start" oninput="onStockInput(true)"></div>
         </div>
+        <div class="ledger-line" id="ledger-line">
+          <span class="stock-balance-note" id="stock-balance-note"></span>
+          <button type="button" class="stock-from-ledger" id="stock-from-ledger-btn" onclick="fillStockFromLedger()">台帳から入れる</button>
+        </div>
+        <div class="note stock-ledger-msg" id="stock-ledger-msg"></div>
       </div>
     </section>
 
@@ -749,66 +825,16 @@ html.theme-race .hero-row .v,html.theme-race .hit .b{font-size:var(--box-size,24
       <input class="input-field" type="number" inputmode="numeric" id="seisan-kokan" value="28" oninput="calcSeisan();saveSeisan()">
       <span>玉交換</span>
     </div>
-    <table class="seisan-table">
-      <thead>
-        <tr>
-          <th style="text-align:left;width:48px;"></th>
-          <th>現金投資(円)</th>
-          <th>貯玉投資(玉)</th>
-          <th>回収玉</th>
-          <th>回収(現金円)</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td>自分</td>
-          <td><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-jibun-genkin" oninput="calcSeisan();saveSeisan()"></td>
-          <td><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-jibun-tama" oninput="calcSeisan();saveSeisan()"></td>
-          <td><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-jibun-recover" oninput="calcSeisan();saveSeisan()"></td>
-          <td><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-jibun-recover-cash" oninput="calcSeisan();saveSeisan()"></td>
-        </tr>
-        <tr>
-          <td>相手</td>
-          <td><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-aite-genkin" oninput="calcSeisan();saveSeisan()"></td>
-          <td><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-aite-tama" oninput="calcSeisan();saveSeisan()"></td>
-          <td><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-aite-recover" oninput="calcSeisan();saveSeisan()"></td>
-          <td><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-aite-recover-cash" oninput="calcSeisan();saveSeisan()"></td>
-        </tr>
-      </tbody>
-    </table>
+    <div class="seisan-person"><div class="seisan-who">自分</div><div class="inputs seisan-grid"><div class="field"><label for="seisan-jibun-genkin">現金投資（円）</label><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-jibun-genkin" oninput="calcSeisan();saveSeisan()"></div><div class="field"><label for="seisan-jibun-tama">貯玉投資（玉）</label><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-jibun-tama" oninput="calcSeisan();saveSeisan()"></div><div class="field"><label for="seisan-jibun-recover">回収玉</label><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-jibun-recover" oninput="calcSeisan();saveSeisan()"></div><div class="field"><label for="seisan-jibun-recover-cash">回収（現金円）</label><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-jibun-recover-cash" oninput="calcSeisan();saveSeisan()"></div></div></div>
+    <div class="seisan-person"><div class="seisan-who">相手</div><div class="inputs seisan-grid"><div class="field"><label for="seisan-aite-genkin">現金投資（円）</label><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-aite-genkin" oninput="calcSeisan();saveSeisan()"></div><div class="field"><label for="seisan-aite-tama">貯玉投資（玉）</label><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-aite-tama" oninput="calcSeisan();saveSeisan()"></div><div class="field"><label for="seisan-aite-recover">回収玉</label><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-aite-recover" oninput="calcSeisan();saveSeisan()"></div><div class="field"><label for="seisan-aite-recover-cash">回収（現金円）</label><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-aite-recover-cash" oninput="calcSeisan();saveSeisan()"></div></div></div>
     <div class="note">スロット（メダル）</div>
     <div class="seisan-line">
       <span>交換率</span>
       <input class="input-field" type="number" inputmode="decimal" id="seisan-slot-rate" placeholder="5.6" oninput="calcSeisan();saveSeisan()">
       <span>100円あたり枚数</span>
     </div>
-    <table class="seisan-table">
-      <thead>
-        <tr>
-          <th style="text-align:left;width:48px;"></th>
-          <th>現金投資(円)</th>
-          <th>貯メダル投資(枚)</th>
-          <th>回収(枚)</th>
-          <th>回収(現金円)</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td>自分</td>
-          <td><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-slot-jibun-genkin" oninput="calcSeisan();saveSeisan()"></td>
-          <td><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-slot-jibun-medal" oninput="calcSeisan();saveSeisan()"></td>
-          <td><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-slot-jibun-recover" oninput="calcSeisan();saveSeisan()"></td>
-          <td><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-slot-jibun-recover-cash" oninput="calcSeisan();saveSeisan()"></td>
-        </tr>
-        <tr>
-          <td>相手</td>
-          <td><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-slot-aite-genkin" oninput="calcSeisan();saveSeisan()"></td>
-          <td><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-slot-aite-medal" oninput="calcSeisan();saveSeisan()"></td>
-          <td><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-slot-aite-recover" oninput="calcSeisan();saveSeisan()"></td>
-          <td><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-slot-aite-recover-cash" oninput="calcSeisan();saveSeisan()"></td>
-        </tr>
-      </tbody>
-    </table>
+    <div class="seisan-person"><div class="seisan-who">自分</div><div class="inputs seisan-grid"><div class="field"><label for="seisan-slot-jibun-genkin">現金投資（円）</label><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-slot-jibun-genkin" oninput="calcSeisan();saveSeisan()"></div><div class="field"><label for="seisan-slot-jibun-medal">貯メダル投資（枚）</label><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-slot-jibun-medal" oninput="calcSeisan();saveSeisan()"></div><div class="field"><label for="seisan-slot-jibun-recover">回収（枚）</label><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-slot-jibun-recover" oninput="calcSeisan();saveSeisan()"></div><div class="field"><label for="seisan-slot-jibun-recover-cash">回収（現金円）</label><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-slot-jibun-recover-cash" oninput="calcSeisan();saveSeisan()"></div></div></div>
+    <div class="seisan-person"><div class="seisan-who">相手</div><div class="inputs seisan-grid"><div class="field"><label for="seisan-slot-aite-genkin">現金投資（円）</label><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-slot-aite-genkin" oninput="calcSeisan();saveSeisan()"></div><div class="field"><label for="seisan-slot-aite-medal">貯メダル投資（枚）</label><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-slot-aite-medal" oninput="calcSeisan();saveSeisan()"></div><div class="field"><label for="seisan-slot-aite-recover">回収（枚）</label><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-slot-aite-recover" oninput="calcSeisan();saveSeisan()"></div><div class="field"><label for="seisan-slot-aite-recover-cash">回収（現金円）</label><input class="input-field" type="number" inputmode="numeric" placeholder="0" id="seisan-slot-aite-recover-cash" oninput="calcSeisan();saveSeisan()"></div></div></div>
     <div class="seisan-warning" id="seisan-warning" style="display:none;"></div>
     <div class="seisan-result" id="seisan-result" style="display:none;">
       <dl class="kv">
@@ -832,6 +858,10 @@ html.theme-race .hero-row .v,html.theme-race .hit .b{font-size:var(--box-size,24
       <div class="row"><span class="row-label">書体</span><span class="row-ctl"><span class="seg" id="font-seg">
         <button type="button" data-font="titillium" aria-pressed="true">Titillium</button>
         <button type="button" data-font="michroma" aria-pressed="false">Michroma</button>
+      </span></span></div>
+      <div class="row"><span class="row-label">画面</span><span class="row-ctl"><span class="seg" id="mode-seg">
+        <button type="button" data-mode="dark" aria-pressed="true">ダーク</button>
+        <button type="button" data-mode="light" aria-pressed="false">ライト</button>
       </span></span></div>
       <div class="row"><span class="row-label">さらに暗く</span><span class="row-ctl"><button type="button" class="switch" id="night-toggle" aria-pressed="false" aria-label="さらに暗く"></button></span></div>
     </div>
@@ -1118,8 +1148,9 @@ function updateInvestBallBadge() {
     document.getElementById('in-stock-start')?.value,
     document.getElementById('in-stock-end')?.value
   );
-  b.textContent = auto ? '自動' : '入力';
+  b.textContent = auto ? '自動' : '手入力';
   b.className = auto ? 'badge-auto' : 'badge-manual';
+  renderInvestBallView();
 }
 
 // 終了時貯玉が開始時貯玉より多いときの補足表示を切り替える（通常に戻れば消す）
@@ -1182,13 +1213,15 @@ function showStockBalanceNote() {
   const note = document.getElementById('stock-balance-note');
   if (!note) return;
   const card = document.getElementById('in-stock-card')?.value.trim();
-  if (!S.shop || !card || !stockBalancesCache) { note.textContent = ''; note.className = 'stock-balance-note'; return; }
+  if (!S.shop || !card || !stockBalancesCache) { note.textContent = ''; note.className = 'stock-balance-note'; placeStockBlock(false); return; }
   const found = stockBalancesCache.find(item => item.shop === S.shop.name && item.card === card);
   if (!found) {
-    note.textContent = '台帳未登録：開始時貯玉を入力すると初回残高になります';
+    note.textContent = '台帳未登録（このカードの記録はまだありません）';
     note.className = 'stock-balance-note';
+    placeStockBlock(true);
     return;
   }
+  placeStockBlock(false);
   const balance = Number(found.balance);
   if (balance < 0) {
     note.textContent = `台帳残高 ${balance.toLocaleString('ja-JP')}玉：appbの棚卸しで実残高に補正してください`;
@@ -1284,6 +1317,137 @@ function applyLedgerBalanceToStock() {
   showStockMessage('台帳の残高 ' + balance.toLocaleString('ja-JP') + '玉を入れました');
 }
 
+
+// ==== 必須の未入力・投資玉数の表示 純関数（ここから） ====
+// 必須で空の欄を返す。v は画面の値（文字列）。投資は 投資金額・投資終了時貯玉・手入力の投資玉数 のどれか1つで足りる
+function requiredMissing(v) {
+  const empty = x => x === undefined || x === null || String(x).trim() === '';
+  const invNone = empty(v.inv) && empty(v.se) && !(v.ibManual && !empty(v.ib));
+  return {
+    ts: empty(v.ts), te: empty(v.te),
+    rs: v.rotMode !== 'segments' && empty(v.rs),
+    re: v.rotMode !== 'segments' && empty(v.re),
+    inv: invNone, se: invNone,
+    rc: empty(v.rc),
+    ss: !!v.firstVisit && empty(v.ss),
+  };
+}
+// 投資玉数の元の数字の説明（開始 1,531 − 終了 531）
+function investBallSourceText(start, end) {
+  const s = String(start ?? '').trim(), e = String(end ?? '').trim();
+  if (s === '' || e === '') return '開始時貯玉と投資終了時貯玉から出します';
+  const n = v => Number(v).toLocaleString('ja-JP');
+  return '開始 ' + n(s) + ' − 終了 ' + n(e);
+}
+// ==== 必須の未入力・投資玉数の表示 純関数（ここまで） ====
+
+// 必須の未入力の印を付け直す
+function updateRequiredMarks() {
+  const val = id => { const e = document.getElementById(id); return e ? e.value : ''; };
+  const m = requiredMissing({
+    ts: val('in-time-start'), te: val('in-time-end'), rotMode: S.rotationMode,
+    rs: val('in-rot-start'), re: val('in-rot-end'),
+    inv: val('in-invest'), se: val('in-stock-end'), ib: val('in-invest-ball'), ibManual: S.investBallSource === 'direct',
+    rc: val('in-recover'), firstVisit: !!S.stockFirstVisit, ss: val('in-stock-start'),
+  });
+  const mark = (el, on) => { if (el && el.classList) el.classList.toggle('req', !!on); };
+  const fieldOf = id => { const e = document.getElementById(id); return e && typeof e.closest === 'function' ? e.closest('.field') : null; };
+  mark(document.getElementById('time-start-group'), m.ts);
+  mark(document.getElementById('time-end-group'), m.te);
+  mark(fieldOf('in-rot-start'), m.rs);
+  mark(fieldOf('in-rot-end'), m.re);
+  mark(document.getElementById('invest-field'), m.inv);
+  mark(document.getElementById('stock-end-field'), m.se);
+  mark(document.getElementById('recover-field'), m.rc);
+  mark(document.getElementById('stock-start-field'), m.ss);
+}
+// 計算のたびに印を付け直す（計算そのものは変えない）
+const recalcCore = recalc;
+recalc = function () { const r = recalcCore.apply(this, arguments); try { updateRequiredMarks(); } catch (e) {} return r; };
+
+// 投資玉数：普段は貯玉から出した結果を表示し、「手で入れる」のときだけ入力欄にする
+function renderInvestBallView() {
+  const input = document.getElementById('in-invest-ball');
+  const view = document.getElementById('invest-ball-view');
+  const disp = document.getElementById('invest-ball-disp');
+  const src = document.getElementById('invest-ball-src');
+  const btn = document.getElementById('invest-ball-mode');
+  if (!input || !view) return;
+  const manual = S.investBallSource === 'direct';
+  input.hidden = !manual;
+  view.hidden = manual;
+  const has = input.value !== '';
+  disp.textContent = has ? Number(input.value).toLocaleString('ja-JP') : '—';
+  disp.classList.toggle('is-empty', !has);
+  src.textContent = investBallSourceText(document.getElementById('in-stock-start')?.value, document.getElementById('in-stock-end')?.value);
+  if (btn) btn.textContent = manual ? '自動に戻す' : '手で入れる';
+}
+function toggleInvestBallManual() {
+  if (typeof beginUndo === 'function') beginUndo();
+  if (S.investBallSource === 'direct') {
+    onStockInput(false); // 貯玉からの計算に戻す（investBallSource は 'stock' になる）
+  } else {
+    S.investBallSource = 'direct';
+    updateInvestBallBadge();
+    recalc();
+    save();
+    setTimeout(() => { try { document.getElementById('in-invest-ball').focus(); } catch (e) {} }, 0);
+  }
+  renderInvestBallView();
+  if (typeof commitUndo === 'function') commitUndo();
+}
+
+// 台帳に記録がない店では、貯玉のかたまりを収支入力の一番上へ移し、開始時貯玉を必須にする
+function placeStockBlock(firstVisit) {
+  const block = document.getElementById('stock-block');
+  const top = document.getElementById('stock-block-top');
+  const sec = document.getElementById('section-money');
+  if (!block || !top || !sec) return;
+  S.stockFirstVisit = !!firstVisit;
+  if (firstVisit) { if (block.parentNode !== top) top.appendChild(block); }
+  else if (block.parentNode !== sec) sec.appendChild(block);
+  const note = document.getElementById('stock-first-note');
+  if (note) note.hidden = !firstVisit;
+  const btn = document.getElementById('stock-from-ledger-btn');
+  if (btn) btn.hidden = !!firstVisit;
+  updateRequiredMarks();
+}
+
+// 画面（ダーク／ライト）。見た目1のときに効く。ライトでは「さらに暗く」は使わない
+const MODE_KEY = 'appa_mode_v1';
+function applyMode(mode) {
+  const m = mode === 'light' ? 'light' : 'dark';
+  try { document.documentElement.classList.toggle('mode-light', m === 'light'); } catch (e) {}
+  const seg = document.getElementById('mode-seg');
+  if (seg) seg.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.mode === m)));
+  const night = document.getElementById('night-toggle');
+  if (night) night.setAttribute('aria-disabled', String(m === 'light'));
+  return m;
+}
+function loadMode() {
+  let m = 'dark';
+  try { m = localStorage.getItem(MODE_KEY) === 'light' ? 'light' : 'dark'; } catch (e) {}
+  applyMode(m);
+}
+function setMode(mode) {
+  const m = applyMode(mode);
+  try { localStorage.setItem(MODE_KEY, m); } catch (e) {}
+}
+
+// 切り替えスイッチの横に「オン／オフ」を出す（aria-pressed の変化を見て書き換える）
+function initSwitchLabels() {
+  document.querySelectorAll('.switch').forEach(sw => {
+    if (sw.nextElementSibling && sw.nextElementSibling.classList.contains('sw-state')) return;
+    const st = document.createElement('span');
+    st.className = 'sw-state';
+    st.setAttribute('aria-hidden', 'true');
+    sw.parentNode.insertBefore(st, sw);
+    const sync = () => { const on = sw.getAttribute('aria-pressed') === 'true'; st.textContent = on ? 'オン' : 'オフ'; st.classList.toggle('on', on); };
+    sync();
+    new MutationObserver(sync).observe(sw, { attributes: true, attributeFilter: ['aria-pressed'] });
+  });
+}
+
 function fillStockFromLedger() {
   const cardEl = document.getElementById('in-stock-card');
   const card = cardEl ? cardEl.value.trim() : '';
@@ -1301,6 +1465,9 @@ window.addEventListener('DOMContentLoaded', async () => {
   // 見た目（レース／計器盤・書体）と「さらに暗く」を先に適用する
   loadTheme();
   loadNightMode();
+  loadMode();
+  initSwitchLabels();
+  document.querySelectorAll('#mode-seg button').forEach(b => b.addEventListener('click', () => setMode(b.dataset.mode)));
   // 清算計算機の入力は通信を待たずに先に戻す（保存は別キー）
   loadSeisan();
   // キャッシュがあれば即座に表示
